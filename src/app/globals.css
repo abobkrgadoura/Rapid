@@ -1,0 +1,258 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@config "../../tailwind.config.ts";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans), var(--font-arabic), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-gold: var(--gold);
+  --color-ink-950: var(--ink-950);
+  --color-ink-900: var(--ink-900);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  /* zinc-50 canvas, zinc-900 text, indigo-900 brand */
+  --background: oklch(0.985 0.002 286);
+  --foreground: oklch(0.21 0.006 286);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.006 286);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.006 286);
+  --primary: oklch(0.359 0.144 278.7);
+  --primary-foreground: oklch(0.985 0.002 286);
+  --secondary: oklch(0.967 0.001 286);
+  --secondary-foreground: oklch(0.21 0.006 286);
+  --muted: oklch(0.967 0.001 286);
+  --muted-foreground: oklch(0.442 0.014 285.8);
+  --accent: oklch(0.96 0.012 85);
+  --accent-foreground: oklch(0.32 0.05 70);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.92 0.004 286);
+  --input: oklch(0.92 0.004 286);
+  --ring: oklch(0.359 0.144 278.7);
+  --chart-1: oklch(0.359 0.144 278.7);
+  --chart-2: oklch(0.68 0.1 85);
+  --chart-3: oklch(0.37 0.006 286);
+  --chart-4: oklch(0.55 0.01 286);
+  --chart-5: oklch(0.274 0.006 286);
+  --radius: 0.5rem;
+  --brand: oklch(0.359 0.144 278.7);
+  --brand-foreground: oklch(0.985 0.002 286);
+  --gold: oklch(0.62 0.11 85);
+  --ink-950: oklch(0.141 0.005 286);
+  --ink-900: oklch(0.21 0.006 286);
+  --sidebar: oklch(0.141 0.005 286);
+  --sidebar-foreground: oklch(0.985 0.002 286);
+  --sidebar-primary: oklch(0.457 0.18 277.5);
+  --sidebar-primary-foreground: oklch(0.985 0.002 286);
+  --sidebar-accent: oklch(0.274 0.006 286);
+  --sidebar-accent-foreground: oklch(0.985 0.002 286);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.457 0.18 277.5);
+}
+
+.dark {
+  --background: oklch(0.16 0.02 277);
+  --foreground: oklch(0.96 0.005 286);
+  --card: oklch(0.21 0.025 277);
+  --card-foreground: oklch(0.96 0.005 286);
+  --popover: oklch(0.21 0.025 277);
+  --popover-foreground: oklch(0.96 0.005 286);
+  --primary: oklch(0.72 0.12 277);
+  --primary-foreground: oklch(0.16 0.02 277);
+  --secondary: oklch(0.26 0.025 277);
+  --secondary-foreground: oklch(0.96 0.005 286);
+  --muted: oklch(0.26 0.025 277);
+  --muted-foreground: oklch(0.74 0.02 286);
+  --accent: oklch(0.28 0.03 85);
+  --accent-foreground: oklch(0.92 0.04 85);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.62 0.12 277);
+  --chart-1: oklch(0.68 0.12 277);
+  --chart-2: oklch(0.78 0.09 85);
+  --chart-3: oklch(0.55 0.02 277);
+  --chart-4: oklch(0.4 0.03 277);
+  --chart-5: oklch(0.3 0.02 277);
+  --brand: oklch(0.68 0.14 277);
+  --brand-foreground: oklch(0.98 0.005 286);
+  --gold: oklch(0.78 0.09 85);
+  --sidebar: oklch(0.14 0.025 277);
+  --sidebar-foreground: oklch(0.96 0.005 286);
+  --sidebar-primary: oklch(0.68 0.14 277);
+  --sidebar-primary-foreground: oklch(0.98 0.005 286);
+  --sidebar-accent: oklch(0.24 0.03 277);
+  --sidebar-accent-foreground: oklch(0.96 0.005 286);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.62 0.12 277);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-zinc-50 text-foreground;
+  }
+  html {
+    @apply font-sans bg-zinc-50;
+  }
+}
+
+/* Unlayered so the sticker frame stays black even when the base layer
+   paints every element with the theme border color. Crisp 1.5px frame. */
+.awb-label {
+  box-sizing: border-box;
+  border: 1.5px solid #000;
+  border-radius: 0.375rem;
+}
+
+/* A4 portrait. 210mm × 297mm is 794×1123 px at 96dpi. */
+.awb-a4-page {
+  width: 210mm;
+  height: 297mm;
+  box-sizing: border-box;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  .awb-screen-only {
+    display: none !important;
+  }
+
+  .awb-preview-stage {
+    overflow: visible !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  .awb-a4-page {
+    width: 210mm !important;
+    height: 297mm !important;
+    margin: 0 auto !important;
+    border: 1px solid #000 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+/*
+  Phone taps were reaching the wrong layer, or never becoming a click.
+  touch-action is not inherited, so it has to sit on the control itself.
+  manipulation keeps pinch-zoom and drops the double-tap zoom that swallows a tap.
+  cursor: pointer is what iOS needs before it will click a div (menu and select rows).
+  Icons are decoration; the control behind them is the hit target.
+  Coarse pointers get a 44px tall target. Switches and radios keep their own size
+  and expand through the label row instead.
+*/
+@layer base {
+  button,
+  input,
+  select,
+  textarea,
+  summary,
+  label,
+  a[href],
+  [role="button"],
+  [role="tab"],
+  [role="menuitem"],
+  [role="option"],
+  [role="switch"],
+  [role="radio"] {
+    touch-action: manipulation;
+  }
+
+  button,
+  summary,
+  label,
+  a[href],
+  [role="button"],
+  [role="tab"],
+  [role="menuitem"],
+  [role="option"] {
+    cursor: pointer;
+  }
+
+  button svg,
+  summary svg,
+  a svg,
+  label svg,
+  [role="button"] svg,
+  [role="tab"] svg,
+  [role="menuitem"] svg,
+  [role="option"] svg {
+    pointer-events: none;
+  }
+
+  @media (pointer: coarse) {
+    button:not([role="switch"]):not([role="radio"]),
+    [role="button"],
+    [role="tab"],
+    [role="menuitem"],
+    [role="option"] {
+      min-height: 2.75rem;
+    }
+
+    input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="file"]),
+    select,
+    textarea {
+      min-height: 2.75rem;
+    }
+    /* text fields keep the same 44px thumb target */
+  }
+}
+
+/* Dev overlay host can cover the viewport on a phone and eat every tap. */
+nextjs-portal {
+  pointer-events: none;
+}

@@ -1,0 +1,31 @@
+# Rapid Logistics — Project Rules
+
+Stack: Next.js (App Router), Tailwind CSS, shadcn/ui, Supabase. Do not add another auth provider, ORM, or UI kit unless the user explicitly asks.
+
+## Task tracking
+
+- Read `todo.md` before generating any code, and update it to match the work about to start.
+- Update `todo.md` again after generating any code.
+- Mark a task complete with `[x]` only when that task is actually done.
+- Leave unfinished tasks as `[ ]`.
+- Do not begin a later phase while the current phase still has open tasks, unless the user explicitly says to skip ahead.
+
+## Role-based access control
+
+Enforce strict RBAC on every route, Server Action, and Supabase Row Level Security policy. Roles are only:
+
+- `admin` — platform owner
+- `merchant`
+- `driver` — freelance and in-house share this role; employment type is a profile attribute, not a separate role
+- `customer`
+
+Deny by default. Resolve the role from the server session, never from a client-supplied field. A user may access only the surfaces and rows their role allows.
+
+## Driver virtual wallet
+
+Every driver has one virtual wallet. Money movement always follows payment type:
+
+- **COD:** the driver collects cash and owes the platform. Debit the wallet (balance becomes more negative).
+- **Prepaid:** the platform already collected payment and owes the driver their net earning. Credit the wallet (balance becomes more positive).
+
+Positive balance means the platform owes the driver. Negative balance means the driver owes the platform. Never change a wallet balance without inserting a matching `transactions` row in the same operation.
