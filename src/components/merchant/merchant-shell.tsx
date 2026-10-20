@@ -372,16 +372,16 @@ export function MerchantShell({
 
         {/* Mobile drawer */}
         {mobileOpen ? (
-          <div className="fixed inset-0 z-50 print:hidden md:hidden">
+          <div className="pointer-events-none fixed inset-0 z-50 print:hidden md:hidden">
             <button
               type="button"
               aria-label={copy.closeMenu}
               onClick={() => setMobileOpen(false)}
-              className="animate-in fade-in-0 absolute inset-0 bg-black/50 backdrop-blur-sm duration-200"
+              className="pointer-events-auto absolute inset-0 z-0 animate-in bg-black/50 backdrop-blur-sm duration-200 fade-in-0"
             />
             <aside
               className={cn(
-                "animate-in absolute inset-y-0 start-0 flex w-72 max-w-[85vw] flex-col bg-ink-950 shadow-2xl duration-200",
+                "pointer-events-auto absolute inset-y-0 start-0 z-10 flex w-72 max-w-[85vw] animate-in flex-col bg-ink-950 shadow-2xl duration-200",
                 dir === "rtl" ? "slide-in-from-right" : "slide-in-from-left",
               )}
             >

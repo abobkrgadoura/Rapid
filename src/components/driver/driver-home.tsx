@@ -1,39 +1,72 @@
 "use client";
 
-import { Banknote, PackageOpen, Wallet } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { PackageOpen } from "lucide-react";
+import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 
 import { acknowledgeDriverAlert } from "@/actions/driver-pro";
 import { DeliveryBoard } from "@/components/driver/delivery-work";
-import { DriverTabs } from "@/components/driver/driver-tabs";
+import { DriverTabs, DriverTopBar } from "@/components/driver/driver-tabs";
 import { DeliveryScanner } from "@/components/driver/delivery-scanner";
 import { HubLoadScanner } from "@/components/driver/hub-load-scanner";
 import { PickupMerchantCard } from "@/components/driver/stop-cards";
 import { useDriverPrefs } from "@/components/driver/preferences";
-import type { DriverAlert, DriverDashboard, PickupMerchant } from "@/lib/data/driver-dashboard";
+import type {
+  DriverAlert,
+  DriverDashboard,
+  PickupMerchant,
+} from "@/lib/data/driver-dashboard";
 import { formatMoney } from "@/lib/format-money";
+import { TIME_ZONE } from "@/lib/locale/sudan";
 import { parseSignedMoneyCents } from "@/lib/money";
 
 const SEEN_KEY = "rapid.driver.seenDeliveries";
+
+/** Midnight at the start of today in Khartoum. Mirrors the server helper without importing it. */
+function khartoumMidnight(now = new Date()): number {
+  const day = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+  return new Date(`${day}T00:00:00+02:00`).getTime();
+}
+
+/**
+ * Open pickup parcels split into waiting and urgent.
+ * A merchant is urgent when the oldest pending parcel was requested before today.
+ * Picked-up-today is not on the dashboard payload, so "تم الاستلام" stays 0.
+ */
+function pickupCounts(merchants: PickupMerchant[]) {
+  const start = khartoumMidnight();
+  let waiting = 0;
+  let urgent = 0;
+  for (const merchant of merchants) {
+    const requested = merchant.requestedAt ? new Date(merchant.requestedAt).getTime() : Number.NaN;
+    const late = Number.isFinite(requested) && requested < start;
+    if (late) urgent += merchant.pendingCount;
+    else waiting += merchant.pendingCount;
+  }
+  return { today: waiting + urgent, waiting, urgent, completed: 0 };
+}
 
 export function DriverHome({ data }: { data: DriverDashboard }) {
   const router = useRouter();
   const { t, alert, prefs } = useDriverPrefs();
   const { wallet, shift, pickups, deliveries, alerts } = data;
-  const pickupCount = pickups.reduce((sum, merchant) => sum + merchant.pendingCount, 0);
-  const cents = parseSignedMoneyCents(wallet.balance) ?? BigInt(0);
-  const walletLabel =
-    cents > BigInt(0) ? t.walletOwesYou : cents < BigInt(0) ? t.walletYouOwe : t.walletSettled;
+  const counts = pickupCounts(pickups);
 
-  const zones = useMemo(() => {
+  const merchants = useMemo(() => {
     const groups = new Map<string, PickupMerchant[]>();
     for (const merchant of pickups) {
       const list = groups.get(merchant.zone) ?? [];
       list.push(merchant);
       groups.set(merchant.zone, list);
     }
-    return [...groups.entries()].sort(([left], [right]) => left.localeCompare(right, "ar"));
+    return [...groups.entries()]
+      .sort(([left], [right]) => left.localeCompare(right, "ar"))
+      .flatMap(([, list]) => list);
   }, [pickups]);
 
   useEffect(() => {
@@ -56,131 +89,109 @@ export function DriverHome({ data }: { data: DriverDashboard }) {
     alert();
   }, [alerts, prefs.highAlert, alert]);
 
-  return (
-    <div className="flex flex-col gap-6">
-      {alerts.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          {alerts.map((item) => (
-            <DriverNotice
-              key={item.id}
-              item={item}
-              title={item.kind === "retry_delivery" ? t.retryNotice : t.returnNotice}
-              dismiss={t.dismiss}
-              onDismiss={() => router.refresh()}
-            />
-          ))}
-        </div>
-      ) : null}
-      <section className="grid grid-cols-2 gap-3">
-        <article className="bg-rose-700 text-white flex flex-col gap-1 rounded-3xl px-4 py-4">
-          <span className="flex items-center gap-1.5 text-xs font-medium opacity-90">
-            <Banknote className="size-3.5" />
-            {t.custody}
-          </span>
-          <p className="text-2xl font-bold tabular-nums">{formatMoney(shift.cashInHand, wallet.currency)}</p>
-        </article>
-        <article className="bg-emerald-700 text-white flex flex-col gap-1 rounded-3xl px-4 py-4">
-          <span className="flex items-center gap-1.5 text-xs font-medium opacity-90">
-            <Wallet className="size-3.5" />
-            {t.earnings}
-          </span>
-          <p className="text-2xl font-bold tabular-nums">
-            {formatMoney(shift.earningsToday, wallet.currency)}
-          </p>
-          <p className="text-[11px] leading-snug opacity-80">
-            {shift.deliveredToday} × {formatMoney(shift.commissionPerDelivery, wallet.currency)}
-          </p>
-        </article>
-      </section>
-      <p className="text-muted-foreground text-center text-xs">{walletLabel} · {formatMoney(wallet.balance, wallet.currency)}</p>
+  async function dismissAlert(id: string) {
+    await acknowledgeDriverAlert(id);
+    router.refresh();
+  }
 
-      <DriverTabs
-        initialTab={pickups.length === 0 && deliveries.length > 0 ? "deliveries" : "pickups"}
-        pickupCount={pickupCount}
-        deliveryCount={deliveries.length}
-        pickupLabel={t.pickups}
-        deliveryLabel={t.deliveries}
-        pickedUpLabel={t.pickedUpNotice}
-        fromLabel={t.from}
-        hubLabel={t.takeToHub}
-        dismissLabel={t.dismiss}
-        pickups={
-          zones.length > 0 ? (
-            zones.map(([zone, merchants]) => (
-              <section key={zone} className="flex flex-col gap-3">
-                <h2 className="text-sm font-semibold">
-                  {zone} — {merchants.length} {t.merchantsInZone}
-                </h2>
-                {merchants.map((merchant) => (
-                  <PickupMerchantCard key={merchant.merchantId} merchant={merchant} />
-                ))}
-              </section>
-            ))
-          ) : (
-            <EmptyState>{t.emptyPickups}</EmptyState>
-          )
-        }
-        deliveries={
-          deliveries.length > 0 ? (
-            <DeliveryBoard stops={deliveries} currency={wallet.currency} />
-          ) : (
-            <EmptyState>{t.emptyDeliveries}</EmptyState>
-          )
-        }
-        deliveryBar={
-          <>
-            <HubLoadScanner />
-            <DeliveryScanner currency={wallet.currency} />
-          </>
-        }
+  const pickupList =
+    merchants.length > 0 ? (
+      merchants.map((merchant) => (
+        <PickupMerchantCard key={merchant.merchantId} merchant={merchant} />
+      ))
+    ) : (
+      <EmptyState>{t.emptyPickups}</EmptyState>
+    );
+
+  if (pickups.length === 0 && deliveries.length > 0) {
+    return (
+      <DeliveryHome
+        alerts={alerts}
+        onDismissAlert={dismissAlert}
+        currency={wallet.currency}
+        cashInHand={shift.cashInHand}
+        earningsToday={shift.earningsToday}
+        deliveredToday={shift.deliveredToday}
+        commission={shift.commissionPerDelivery}
+        balance={wallet.balance}
+        deliveries={deliveries}
       />
-    </div>
-  );
-}
-
-function DriverNotice({
-  item,
-  title,
-  dismiss,
-  onDismiss,
-}: {
-  item: DriverAlert;
-  title: string;
-  dismiss: string;
-  onDismiss: () => void;
-}) {
-  const [pending, setPending] = useState(false);
-
-  async function close() {
-    if (pending) return;
-    setPending(true);
-    await acknowledgeDriverAlert(item.id);
-    onDismiss();
+    );
   }
 
   return (
-    <article className="flex items-start justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-      <p>
-        <span dir="ltr" className="font-mono text-xs font-bold">
-          {item.trackingCode}
-        </span>
-        <span className="mt-1 block leading-snug">{title}</span>
-      </p>
-      <button
-        type="button"
-        onClick={() => void close()}
-        disabled={pending}
-        className="shrink-0 text-xs font-semibold underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-amber-400"
-      >
-        {dismiss}
-      </button>
-    </article>
+    <DriverTabs
+      todayCount={counts.today}
+      completedCount={counts.completed}
+      waitingCount={counts.waiting}
+      urgentCount={counts.urgent}
+      merchants={merchants}
+      alerts={alerts}
+      onDismissAlert={dismissAlert}
+      pickups={pickupList}
+    />
+  );
+}
+
+function DeliveryHome({
+  alerts,
+  onDismissAlert,
+  currency,
+  cashInHand,
+  earningsToday,
+  deliveredToday,
+  commission,
+  balance,
+  deliveries,
+}: {
+  alerts: DriverAlert[];
+  onDismissAlert: (id: string) => void;
+  currency: string;
+  cashInHand: string;
+  earningsToday: string;
+  deliveredToday: number;
+  commission: string;
+  balance: string;
+  deliveries: DriverDashboard["deliveries"];
+}) {
+  const { t } = useDriverPrefs();
+  const cents = parseSignedMoneyCents(balance) ?? BigInt(0);
+  const walletLabel =
+    cents > BigInt(0) ? t.walletOwesYou : cents < BigInt(0) ? t.walletYouOwe : t.walletSettled;
+
+  return (
+    <div className="flex flex-1 flex-col">
+      <section className="bg-[#082D52] pt-[env(safe-area-inset-top)] pb-6">
+        <DriverTopBar alerts={alerts} onDismissAlert={onDismissAlert} />
+        <div className="mt-4 flex flex-col gap-1 px-4 text-center text-xs text-white/80">
+          <p>
+            {t.custody}: {formatMoney(cashInHand, currency)}
+            {" · "}
+            {t.earnings}: {formatMoney(earningsToday, currency)}
+          </p>
+          <p className="text-[11px] text-white/70">
+            {deliveredToday} × {formatMoney(commission, currency)}
+            {" · "}
+            {walletLabel} · {formatMoney(balance, currency)}
+          </p>
+        </div>
+      </section>
+      <div className="flex flex-1 flex-col gap-4 px-4 py-4 pb-40">
+        <DeliveryBoard stops={deliveries} currency={currency} />
+      </div>
+      <div className="bg-card pointer-events-auto fixed inset-x-0 bottom-0 z-50 border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(8,45,82,0.06)]">
+        <div className="mx-auto flex w-full max-w-lg flex-col gap-2">
+          <HubLoadScanner />
+          <DeliveryScanner currency={currency} />
+        </div>
+      </div>
+    </div>
   );
 }
 
 function EmptyState({ children }: { children: React.ReactNode }) {
   return (
-    <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-3xl border border-dashed px-4 py-8 text-center text-sm">
+    <div className="text-muted-foreground flex flex-col items-center gap-2 rounded-2xl border border-dashed bg-card px-4 py-8 text-center text-sm">
       <PackageOpen className="size-7" />
       {children}
     </div>

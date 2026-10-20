@@ -44,9 +44,23 @@ function Choice({
   );
 }
 
-export function DriverSettingsButton() {
+export function DriverSettingsButton({
+  hideTrigger = false,
+  open: openProp,
+  onOpenChange,
+}: {
+  hideTrigger?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+} = {}) {
   const { t, prefs, setPrefs, locale } = useDriverPrefs();
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = openProp ?? uncontrolledOpen;
+
+  function setOpen(next: boolean) {
+    if (openProp === undefined) setUncontrolledOpen(next);
+    onOpenChange?.(next);
+  }
 
   function patch(partial: Partial<DriverPreferences>) {
     setPrefs({ ...prefs, ...partial });
@@ -60,16 +74,18 @@ export function DriverSettingsButton() {
 
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        size="lg"
-        onClick={() => setOpen(true)}
-        className="h-11 min-h-11 gap-1.5 px-3"
-      >
-        <Settings className="size-4" />
-        {t.settings}
-      </Button>
+      {hideTrigger ? null : (
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          onClick={() => setOpen(true)}
+          className="pointer-events-auto h-11 min-h-11 gap-1.5 border-white/20 bg-white/10 px-3 text-white hover:bg-white/20 hover:text-white"
+        >
+          <Settings className="size-4" />
+          {t.settings}
+        </Button>
+      )}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>

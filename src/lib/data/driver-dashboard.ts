@@ -46,6 +46,8 @@ export type PickupMerchant = {
   pendingCount: number;
   /** Canonical SDG string, or null when the fee column is not on the RPC yet. */
   pickupFee: string | null;
+  /** Oldest pending parcel, when `pickup_merchant_groups` returns it. */
+  requestedAt: string | null;
 };
 
 /** A parcel this driver loaded from the hub. Customer details are theirs to see. */
@@ -177,7 +179,14 @@ function parsePickupMerchant(row: unknown): PickupMerchant | null {
     zone: zoneFromText(address),
     pendingCount: count,
     pickupFee: fee,
+    requestedAt: timestampOrNull(row.earliest_created_at),
   };
+}
+
+function timestampOrNull(value: unknown): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
 function parseStop(

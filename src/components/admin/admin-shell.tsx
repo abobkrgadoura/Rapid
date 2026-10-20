@@ -257,14 +257,14 @@ export function AdminShell({
       </aside>
 
       {mobileOpen ? (
-        <div className="fixed inset-0 z-50 md:hidden">
+        <div className="pointer-events-none fixed inset-0 z-50 md:hidden">
           <button
             type="button"
             aria-label={shell.closeMenu}
             onClick={() => setMobileOpen(false)}
-            className="animate-in fade-in-0 absolute inset-0 bg-black/50 backdrop-blur-sm duration-200"
+            className="pointer-events-auto absolute inset-0 z-0 animate-in bg-black/50 backdrop-blur-sm duration-200 fade-in-0"
           />
-          <aside className="bg-ink-950 animate-in absolute inset-y-0 start-0 flex w-72 max-w-[85vw] flex-col shadow-2xl duration-200 rtl:slide-in-from-right ltr:slide-in-from-left">
+          <aside className="bg-ink-950 pointer-events-auto absolute inset-y-0 start-0 z-10 flex w-72 max-w-[85vw] animate-in flex-col shadow-2xl duration-200 rtl:slide-in-from-right ltr:slide-in-from-left">
             <div className="flex h-16 items-center justify-between border-b border-white/5 px-4">
               <Logo collapsed={false} copy={shell} />
               <button

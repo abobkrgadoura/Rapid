@@ -55,81 +55,85 @@
 }
 
 :root {
-  /* zinc-50 canvas, zinc-900 text, indigo-900 brand */
-  --background: oklch(0.985 0.002 286);
-  --foreground: oklch(0.21 0.006 286);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.21 0.006 286);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.21 0.006 286);
-  --primary: oklch(0.359 0.144 278.7);
-  --primary-foreground: oklch(0.985 0.002 286);
-  --secondary: oklch(0.967 0.001 286);
-  --secondary-foreground: oklch(0.21 0.006 286);
-  --muted: oklch(0.967 0.001 286);
-  --muted-foreground: oklch(0.442 0.014 285.8);
-  --accent: oklch(0.96 0.012 85);
-  --accent-foreground: oklch(0.32 0.05 70);
+  /* Rapid navy #082D52, primary #0F62FF, soft app canvas */
+  --rapid-dark: #082d52;
+  --rapid-primary: #0f62ff;
+  --background: #f4f7fb;
+  --foreground: #082d52;
+  --card: #ffffff;
+  --card-foreground: #082d52;
+  --popover: #ffffff;
+  --popover-foreground: #082d52;
+  --primary: #0f62ff;
+  --primary-foreground: #ffffff;
+  --secondary: #e7eef6;
+  --secondary-foreground: #082d52;
+  --muted: #e7eef6;
+  --muted-foreground: #4a6280;
+  --accent: #e7eef6;
+  --accent-foreground: #082d52;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0.004 286);
-  --input: oklch(0.92 0.004 286);
-  --ring: oklch(0.359 0.144 278.7);
-  --chart-1: oklch(0.359 0.144 278.7);
+  --border: #d9e2ee;
+  --input: #d9e2ee;
+  --ring: #0f62ff;
+  --chart-1: #0f62ff;
   --chart-2: oklch(0.68 0.1 85);
-  --chart-3: oklch(0.37 0.006 286);
+  --chart-3: #082d52;
   --chart-4: oklch(0.55 0.01 286);
   --chart-5: oklch(0.274 0.006 286);
   --radius: 0.5rem;
-  --brand: oklch(0.359 0.144 278.7);
-  --brand-foreground: oklch(0.985 0.002 286);
+  --brand: #0f62ff;
+  --brand-foreground: #ffffff;
   --gold: oklch(0.62 0.11 85);
-  --ink-950: oklch(0.141 0.005 286);
-  --ink-900: oklch(0.21 0.006 286);
-  --sidebar: oklch(0.141 0.005 286);
-  --sidebar-foreground: oklch(0.985 0.002 286);
-  --sidebar-primary: oklch(0.457 0.18 277.5);
-  --sidebar-primary-foreground: oklch(0.985 0.002 286);
-  --sidebar-accent: oklch(0.274 0.006 286);
-  --sidebar-accent-foreground: oklch(0.985 0.002 286);
-  --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.457 0.18 277.5);
+  --ink-950: #082d52;
+  --ink-900: #0a3a68;
+  --sidebar: #082d52;
+  --sidebar-foreground: #f4f7fb;
+  --sidebar-primary: #0f62ff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #0e3a66;
+  --sidebar-accent-foreground: #f4f7fb;
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: #0f62ff;
 }
 
 .dark {
-  --background: oklch(0.16 0.02 277);
-  --foreground: oklch(0.96 0.005 286);
-  --card: oklch(0.21 0.025 277);
-  --card-foreground: oklch(0.96 0.005 286);
-  --popover: oklch(0.21 0.025 277);
-  --popover-foreground: oklch(0.96 0.005 286);
-  --primary: oklch(0.72 0.12 277);
-  --primary-foreground: oklch(0.16 0.02 277);
-  --secondary: oklch(0.26 0.025 277);
-  --secondary-foreground: oklch(0.96 0.005 286);
-  --muted: oklch(0.26 0.025 277);
-  --muted-foreground: oklch(0.74 0.02 286);
-  --accent: oklch(0.28 0.03 85);
-  --accent-foreground: oklch(0.92 0.04 85);
+  --background: #041525;
+  --foreground: #f4f7fb;
+  --card: #082d52;
+  --card-foreground: #f4f7fb;
+  --popover: #082d52;
+  --popover-foreground: #f4f7fb;
+  --primary: #0f62ff;
+  --primary-foreground: #ffffff;
+  --secondary: #0e3a66;
+  --secondary-foreground: #f4f7fb;
+  --muted: #0e3a66;
+  --muted-foreground: #b7c6d9;
+  --accent: #0e3a66;
+  --accent-foreground: #f4f7fb;
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.62 0.12 277);
-  --chart-1: oklch(0.68 0.12 277);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: #0f62ff;
+  --chart-1: #0f62ff;
   --chart-2: oklch(0.78 0.09 85);
-  --chart-3: oklch(0.55 0.02 277);
+  --chart-3: #4a6280;
   --chart-4: oklch(0.4 0.03 277);
   --chart-5: oklch(0.3 0.02 277);
-  --brand: oklch(0.68 0.14 277);
-  --brand-foreground: oklch(0.98 0.005 286);
+  --brand: #0f62ff;
+  --brand-foreground: #ffffff;
   --gold: oklch(0.78 0.09 85);
-  --sidebar: oklch(0.14 0.025 277);
-  --sidebar-foreground: oklch(0.96 0.005 286);
-  --sidebar-primary: oklch(0.68 0.14 277);
-  --sidebar-primary-foreground: oklch(0.98 0.005 286);
-  --sidebar-accent: oklch(0.24 0.03 277);
-  --sidebar-accent-foreground: oklch(0.96 0.005 286);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.62 0.12 277);
+  --ink-950: #082d52;
+  --ink-900: #0a3a68;
+  --sidebar: #041525;
+  --sidebar-foreground: #f4f7fb;
+  --sidebar-primary: #0f62ff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #0e3a66;
+  --sidebar-accent-foreground: #f4f7fb;
+  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-ring: #0f62ff;
 }
 
 @layer base {
@@ -137,10 +141,10 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-zinc-50 text-foreground;
+    @apply bg-background text-foreground;
   }
   html {
-    @apply font-sans bg-zinc-50;
+    @apply font-sans bg-background;
   }
 }
 
@@ -252,7 +256,54 @@
   }
 }
 
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Dev overlay host can cover the viewport on a phone and eat every tap. */
 nextjs-portal {
   pointer-events: none;
+}
+
+/* A closing sheet must not keep a transparent full-screen layer in the touch path. */
+[data-slot="dialog-overlay"]:is([data-closed], [data-ending-style]),
+[data-slot="dialog-content"]:is([data-closed], [data-ending-style]),
+[data-slot="sheet-overlay"]:is([data-closed], [data-ending-style]),
+[data-slot="sheet-content"]:is([data-closed], [data-ending-style]) {
+  pointer-events: none !important;
+  display: none !important;
+}
+
+[data-slot="dialog-overlay"][data-starting-style],
+[data-slot="sheet-overlay"][data-starting-style] {
+  pointer-events: none !important;
+}
+
+/*
+  Phone taps on the controls that were missing them. Disabled controls stay
+  inert. Position and z-index stay untouched: an unlayered position:relative
+  would pull absolute hit targets (row links, the mobile drawer scrim) back
+  into normal flow, and a z-index on a control cannot escape the header or
+  tablist stacking context that already wraps Sign out, the bell, and the tabs.
+*/
+@media (max-width: 768px) {
+  button:not(:disabled):not([disabled]):not([data-disabled]):not([aria-disabled="true"]),
+  a[href],
+  input:not(:disabled):not([disabled]):not([type="hidden"]),
+  select:not(:disabled):not([disabled]),
+  textarea:not(:disabled):not([disabled]),
+  summary,
+  label,
+  [role="tab"]:not([aria-disabled="true"]):not([data-disabled]),
+  [role="button"]:not([aria-disabled="true"]):not([data-disabled]),
+  [role="menuitem"]:not([data-disabled]),
+  [role="option"]:not([data-disabled]) {
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+  }
 }

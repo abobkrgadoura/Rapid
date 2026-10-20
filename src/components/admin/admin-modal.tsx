@@ -55,13 +55,17 @@ export function AdminDialog({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-ink-950/60 backdrop-blur-[2px] transition-opacity duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0" />
+        <DialogPrimitive.Backdrop
+          data-slot="dialog-overlay"
+          className="fixed inset-0 z-50 bg-ink-950/60 backdrop-blur-[2px] transition-opacity duration-200 data-closed:pointer-events-none data-ending-style:pointer-events-none data-ending-style:opacity-0 data-starting-style:pointer-events-none data-starting-style:opacity-0"
+        />
         <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
           <DialogPrimitive.Popup
             dir="rtl"
             lang="ar"
+            data-slot="dialog-content"
             className={cn(
-              "bg-background pointer-events-auto flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border shadow-2xl outline-none transition-[opacity,transform] duration-200 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0",
+              "bg-background pointer-events-auto flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border shadow-2xl outline-none transition-[opacity,transform] duration-200 data-closed:pointer-events-none data-ending-style:pointer-events-none data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0",
               className,
             )}
           >
@@ -85,12 +89,16 @@ export function AdminDrawer({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-ink-950/60 backdrop-blur-[2px] transition-opacity duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0" />
+        <DialogPrimitive.Backdrop
+          data-slot="dialog-overlay"
+          className="fixed inset-0 z-50 bg-ink-950/60 backdrop-blur-[2px] transition-opacity duration-200 data-closed:pointer-events-none data-ending-style:pointer-events-none data-ending-style:opacity-0 data-starting-style:pointer-events-none data-starting-style:opacity-0"
+        />
         <DialogPrimitive.Popup
           dir="rtl"
           lang="ar"
+          data-slot="dialog-content"
           className={cn(
-            "bg-background fixed inset-y-0 end-0 z-50 flex w-full max-w-xl flex-col border-s shadow-2xl outline-none transition-transform duration-200 data-ending-style:-translate-x-full data-starting-style:-translate-x-full",
+            "bg-background fixed inset-y-0 end-0 z-50 flex w-full max-w-xl flex-col border-s shadow-2xl outline-none transition-transform duration-200 data-closed:pointer-events-none data-ending-style:pointer-events-none data-ending-style:-translate-x-full data-starting-style:-translate-x-full",
             className,
           )}
         >

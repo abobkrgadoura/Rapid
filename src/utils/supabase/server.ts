@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 
 function getSupabaseEnv() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -15,6 +16,9 @@ function getSupabaseEnv() {
 }
 
 export async function createClient() {
+  // supabase-js reads Date.now() for token expiry. connection() stops the
+  // Cache Components prerender before that read, so the route can hydrate.
+  await connection();
   const cookieStore = await cookies();
   const { url, anonKey } = getSupabaseEnv();
 

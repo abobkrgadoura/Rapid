@@ -299,3 +299,54 @@ Print the real waybill from the orders desk, and let a merchant correct a shipme
 Started on the user's explicit instruction while earlier "apply migration" items are still open. Phone taps were ignored on controls a desktop mouse could click.
 
 - [x] Keep taps on buttons, tabs, and menu rows: no press-shift, no backdrop-filter on sticky or fixed chrome, 44px targets, icons out of the hit path
+- [x] On viewports up to 768px, force `pointer-events: auto` on `body` so a stuck Radix Dialog/Sheet lock cannot swallow taps
+- [x] Closed dialogs, sheets, and mobile drawers must not keep a transparent full-screen layer in the touch path
+- [x] Stop the prerender crash on merchant routes (`Date.now()` inside the Supabase session client) so client clicks can hydrate
+- [x] Remove the `[role="presentation"][data-base-ui-inert]` rule (`display: none` / `pointer-events: none`) from `globals.css`: it hid the active backdrop and broke click-outside-to-close on desktop
+- [x] Phone taps still miss Sign out, driver tabs, the notification bell, and form fields: drop Base UI's invisible full-screen veil and closed dialog layers out of the hit path, and force enabled controls to accept touch on viewports up to 768px
+
+- [x] Lift structural chrome above hidden layers: `RoleShell` header gets `relative z-50 pointer-events-auto`; driver `tablist` gets `relative z-50 pointer-events-auto`; the fixed bottom delivery bar switches from `pointer-events-none z-40` to `pointer-events-auto z-50`
+
+## Editor: Tailwind CSS at-rule warning
+
+- [x] Silence the editor's unknownAtRules warning on @apply in globals.css with a workspace .vscode/settings.json (css.lint.unknownAtRules: ignore); the build is unaffected
+
+## Phase 19: UI Redesign - Pickup Driver & Brand Colors
+- [x] Inject Rapid brand colors (#082D52 dark, #0F62FF primary) and a soft app background into `globals.css`.
+- [x] Redesign Pickup task cards: separated cards, rounded-2xl, status badges (e.g., 'Waiting', 'Completed' with distinct colors), and a chevron arrow instead of text buttons.
+- [ ] Apply `supabase/migrations/0016_pickup_card_requested_at.sql` so each pickup card can show the task time (the card hides the clock until `earliest_created_at` is returned)
+- [x] Pickup driver home matches the pickup mockup: flat navy hero (menu, RAPID, bell, profile), four stat cards, merchant barcode button, and recent shipments. The Pickups/Deliveries pills are gone; this screen shows pickup work only.
+  - [x] Polish the driver header: hide pickup financial text, blend the navbar into the navy hero, and stretch the three stat cards
+- [x] Match the pickup mockup header and bottom bar (visual only; nav destinations are still not routes)
+  - [x] Curve the navy hero, right-align the driver name under the bell, and overlap the four stat cards
+  - [x] Fixed bottom nav: الرئيسية، المهام، الشحنات، الملف, with bottom padding so the last card stays visible
+- [x] Inward curve: keep the navy header flat and round the content panel over it; tighten the bottom-nav icon-to-label gap
+- [x] Redesign Pickup Scanner modal and Success (Green Check) UI.
+- [x] Pickup Scanner two-step flow: Merchant Details view (info card, pickup details, call/map/WhatsApp, "بدء الاستلام") then Scanning view ("مسح الباركود"); scanning, `scannedCodes`, add-parcel and `confirmBatchPickup` logic unchanged, success state untouched. `tsc` and `eslint` clean; not yet clicked through in a signed-in driver session. Order number, date, time and address are mock values.
+- [x] Pickup scanner shows the merchant text address (`address` prop, fallback "الخرطوم - السوق العربي") inside the full-screen dialog, passed from the driver home scan and the merchant card. `tsc` and `eslint` clean. Not clicked through in a signed-in driver session
+- [x] Group the driver bottom nav on wide screens (`justify-center` + inner `max-w-sm`) and replace the header wordmark with `/logo-white.png`
+- [x] Tasks screen (قائمة المهام): client-side home/tasks switching from the bottom nav, matching the tasks mockup. No backend or data-fetching changes.
+- [x] Driver bottom nav: "الخريطة" replaces "الشحنات"; shipments merge into the Tasks screen via a merchants/shipments segmented toggle (UI only, no backend change)
+  - [x] `currentView` state is `home | tasks | map | profile`; nav item "الخريطة" with the `Map` icon
+  - [x] `MapView` placeholder ("خريطة المتاجر") rendered when `currentView === "map"`
+  - [x] `TasksView`: `taskMode` toggle, "عاجلة" filter tab, merchant list vs mock shipment cards (logistics info only, no customer phone/call/location)
+  - [x] Code checks: `tsc` and `eslint` clean. Not yet clicked through in a signed-in driver session; the shipment cards are static mock data (WSL-000130, WSL-000131)
+
+## Phase 19.1: Driver tabs scrollbar and interactive mock map
+- [x] Hide the filter-tab scrollbar in `TasksView` with Tailwind arbitrary variants (no reliance on `hide-scrollbar`)
+- [x] Replace `MapView` with a pure CSS/Tailwind interactive mock map: 3 mock merchant pins, selected-pin state, bottom info card (no map library, UI only)
+- [x] Code checks: `tsc` and `eslint` clean (no errors). Not yet viewed in a signed-in driver session; the "بدء التوجيه" button is visual only
+
+## Phase 19.2: Driver profile screen
+- [x] Activate the الملف bottom-nav button and render a profile view (header, user card, info card, action rows, sign out). UI only; employee id and branch are mock values. `tsc` and `eslint` clean. Signed-out `/driver` redirects to login, so the screen was not clicked through in a driver session. Password and support rows are visual only.
+
+## Phase 19.3: Driver profile brand layout
+Started on the user's explicit instruction while the Phase 19 migration apply item is still open. UI only; no new data fetching.
+- [x] Rebuild `ProfileView`: navy `h-20` header with the white logo, avatar and role under the curved panel, three info cards (driver, work, extra), password and support rows, and the rose logout button. Name and email come from the session; phone, employee id, zone, vehicle, plate, and dates are mock. `tsc` and `eslint` clean (the logo `<img>` warning matches the home header). Signed-out `/driver` redirects to login, so the screen was not clicked through in a driver session. Password and support rows stay visual only.
+
+## Phase 19.4: Driver profile row icons
+Started on the user's explicit instruction while the Phase 19 migration apply item is still open. UI only; no new data fetching.
+- [x] Add a leading icon to every `ProfileView` data row and match the mockup values for the mock fields (employee id R1050, vehicle سيارة, plate س ص ع 123, dates 2023-01-01 and 1990-05-15). Name and email stay on the session (fallbacks أحمد محمد and a.mohamed@rapid.com). Password and support rows use `Lock` and `HelpCircle`. `tsc` and `eslint` clean (existing logo `<img>` warning only). Signed-out `/driver` redirects to login, so the screen was not clicked through in a driver session. Password and support rows stay visual only.
+
+## Phase 20: UI Redesign - Delivery Driver
+- [ ] (Pending) Apply the new visual identity to the delivery driver screens.

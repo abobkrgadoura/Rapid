@@ -194,9 +194,9 @@ export function DeliveryScanner({ currency = "SDG" }: { currency?: string }) {
       <Button
         type="button"
         onClick={openScanner}
-        className="h-16 w-full gap-3 rounded-2xl text-lg font-semibold shadow-lg"
+        className="pointer-events-auto relative z-50 h-16 min-h-11 w-full gap-3 rounded-xl bg-[#0F62FF] text-lg font-semibold text-white shadow-md hover:bg-[#0F62FF]/90"
       >
-        <QrCode className="size-6" />
+        <QrCode className="size-7" />
         {t.scanDeliver}
       </Button>
 

@@ -20,7 +20,7 @@ function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) 
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-black/50 transition-opacity duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0",
+        "fixed inset-0 z-50 bg-black/50 transition-opacity duration-200 data-closed:pointer-events-none data-ending-style:pointer-events-none data-ending-style:opacity-0 data-starting-style:pointer-events-none data-starting-style:opacity-0",
         className
       )}
       {...props}
@@ -44,7 +44,7 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[92dvh] w-full max-w-lg flex-col gap-5 overflow-y-auto overscroll-contain rounded-t-3xl border bg-background px-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-xl outline-none transition-transform duration-200 data-ending-style:translate-y-full data-starting-style:translate-y-full",
+          "fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[92dvh] w-full max-w-lg flex-col gap-5 overflow-y-auto overscroll-contain rounded-t-3xl border bg-background px-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-xl outline-none transition-transform duration-200 data-closed:pointer-events-none data-ending-style:pointer-events-none data-ending-style:translate-y-full data-starting-style:translate-y-full",
           className
         )}
         {...props}

@@ -5,6 +5,7 @@ import {
   MapPinned,
   MessageCircle,
   Navigation,
+  PackageCheck,
   Phone,
   ShieldAlert,
   TriangleAlert,
@@ -309,7 +310,12 @@ function HandoffButton({ stop, currency }: { stop: DriverStop; currency: string 
 
   return (
     <>
-      <Button type="button" onClick={() => setOpen(true)} className="h-12 w-full rounded-2xl">
+      <Button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="pointer-events-auto relative z-10 h-14 min-h-11 w-full gap-3 rounded-xl bg-[#0F62FF] text-base font-semibold text-white shadow-md hover:bg-[#0F62FF]/90"
+      >
+        <PackageCheck className="size-6" />
         {t.deliver}
       </Button>
       <Dialog open={open} onOpenChange={(next) => !busy && setOpen(next)}>

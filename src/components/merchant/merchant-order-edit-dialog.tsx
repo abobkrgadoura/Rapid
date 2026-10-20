@@ -50,12 +50,16 @@ export function MerchantOrderEditDialog({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-ink-950/60 backdrop-blur-[2px] transition-opacity duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0" />
+        <DialogPrimitive.Backdrop
+          data-slot="dialog-overlay"
+          className="fixed inset-0 z-50 bg-ink-950/60 backdrop-blur-[2px] transition-opacity duration-200 data-closed:pointer-events-none data-ending-style:pointer-events-none data-ending-style:opacity-0 data-starting-style:pointer-events-none data-starting-style:opacity-0"
+        />
         <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
           <DialogPrimitive.Popup
             dir={dir}
             lang={locale}
-            className="bg-background pointer-events-auto flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border shadow-2xl outline-none transition-[opacity,transform] duration-200 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0"
+            data-slot="dialog-content"
+            className="bg-background pointer-events-auto flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border shadow-2xl outline-none transition-[opacity,transform] duration-200 data-closed:pointer-events-none data-ending-style:pointer-events-none data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0"
           >
             <div className="flex items-start justify-between gap-4 border-b px-6 py-4">
               <div className="flex min-w-0 flex-col gap-1">

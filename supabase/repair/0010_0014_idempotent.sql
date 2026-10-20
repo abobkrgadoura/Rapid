@@ -935,7 +935,8 @@ RETURNS TABLE (
   pickup_address text,
   pickup_gps_url text,
   pending_count bigint,
-  pickup_fee numeric
+  pickup_fee numeric,
+  earliest_created_at timestamptz
 )
 LANGUAGE sql
 STABLE
@@ -965,7 +966,8 @@ AS $fn$
         (SELECT s.pickup_fee_sdg FROM public.platform_settings AS s LIMIT 1),
         2000
       )::numeric
-    END AS pickup_fee
+    END AS pickup_fee,
+    min(o.created_at) AS earliest_created_at
   FROM public.orders AS o
   JOIN public.profiles AS p ON p.id = o.merchant_id
   WHERE o.status = 'pending'
