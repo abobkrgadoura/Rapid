@@ -70,27 +70,51 @@ export function khartoumDay(iso: string): string | null {
   }).format(date);
 }
 
-/** Still sitting at the merchant: the only status the driver still has to collect. */
+/**
+ * Not collected from the merchant yet: `pending`, or `assigned` (a driver is
+ * assigned but has not picked up; the hub also treats both as "not picked up").
+ */
 function isWaitingAtMerchant(status: OrderStatus): boolean {
-  return status === "pending";
+  return status === "pending" || status === "assigned";
+}
+
+/** `pending` and requested (`createdAt`) today in Khartoum. */
+function isRequestedToday(
+  shipment: Pick<PickupShipment, "status" | "createdAt">,
+  today: string | null,
+): boolean {
+  return (
+    shipment.status === "pending" && today !== null && khartoumDay(shipment.createdAt) === today
+  );
+}
+
+/** Narrows a dropdown value to a real badge id. "all" and "urgent" are not badges. */
+export function isShipmentTab(value: string): value is PickupShipmentTab {
+  return value === "new" || value === "waiting" || value === "picked" || value === "cancelled";
 }
 
 /**
  * Maps a database status to the pickup driver's Arabic badge.
- *   pending                           -> waiting (قيد الانتظار): still at the merchant
+ *   pending, requested today          -> new (جديدة)
+ *   pending, requested before today   -> waiting (قيد الانتظار)
+ *   assigned                          -> waiting: not collected yet
  *   picked_up, at_hub, in_transit,
- *   assigned, delivered, returned     -> picked (تم الاستلام): the driver's part is done
+ *   delivered, returned               -> picked (تم الاستلام): the driver's part is done
  *   cancelled                         -> cancelled (ملغاة)
- * "new" (جديدة) is not a badge: it is the filter for pending parcels requested
- * today, see `matchesShipmentFilter`.
+ * Both "new" and "waiting" badges are uncollected parcels, and the "waiting"
+ * filter matches both (see `matchesShipmentFilter`).
  */
-export function shipmentTab(shipment: Pick<PickupShipment, "status">): PickupShipmentTab {
+export function shipmentTab(
+  shipment: Pick<PickupShipment, "status" | "createdAt">,
+  today: string | null,
+): PickupShipmentTab {
   switch (shipment.status) {
     case "pending":
+      return isRequestedToday(shipment, today) ? "new" : "waiting";
+    case "assigned":
       return "waiting";
     case "cancelled":
       return "cancelled";
-    case "assigned":
     case "picked_up":
     case "at_hub":
     case "in_transit":
@@ -100,7 +124,7 @@ export function shipmentTab(shipment: Pick<PickupShipment, "status">): PickupShi
   }
 }
 
-/** Urgent = still at the merchant and requested before today (Khartoum). */
+/** Urgent = not collected yet (pending or assigned) and requested before today (Khartoum). */
 export function isUrgentShipment(
   shipment: Pick<PickupShipment, "status" | "createdAt">,
   today: string | null,
@@ -113,7 +137,7 @@ export function isUrgentShipment(
 
 /**
  * Whether a shipment belongs in the active Shipments list (قائمة الشحنات).
- *   pending                              -> always, whatever its date: the
+ *   pending, assigned                    -> always, whatever its date: the
  *                                           driver still has to collect it
  *   everything else (picked_up, at_hub,
  *   in_transit, ...)                     -> only when `updatedAt` (or `createdAt`
@@ -132,9 +156,9 @@ export function isShipmentVisible(
 /**
  * Filter chip / status dropdown rule.
  *   all       every visible shipment
- *   urgent    pending and requested before today
+ *   urgent    not collected and requested before today
  *   new       pending and requested today (جديدة)
- *   waiting   status is exactly `pending` (قيد الانتظار)
+ *   waiting   not collected yet: pending or assigned (قيد الانتظار)
  *   picked    picked_up / at_hub / in_transit and the other post-pickup statuses (تم الاستلام)
  *   cancelled cancelled
  */
@@ -149,15 +173,11 @@ export function matchesShipmentFilter(
     case "urgent":
       return isUrgentShipment(shipment, today);
     case "new":
-      return (
-        isWaitingAtMerchant(shipment.status) &&
-        today !== null &&
-        khartoumDay(shipment.createdAt) === today
-      );
+      return isRequestedToday(shipment, today);
     case "waiting":
-      return shipment.status === "pending";
+      return isWaitingAtMerchant(shipment.status);
     case "picked":
     case "cancelled":
-      return shipmentTab(shipment) === filter;
+      return shipmentTab(shipment, today) === filter;
   }
 }

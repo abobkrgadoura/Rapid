@@ -47,6 +47,7 @@ import type { SessionProfile } from "@/lib/auth/profile";
 import type { DriverAlert, PickupMerchant } from "@/lib/data/driver-dashboard";
 import { navigationHref } from "@/lib/driver/navigation";
 import {
+  isShipmentTab,
   isShipmentVisible,
   khartoumDay,
   matchesShipmentFilter,
@@ -181,7 +182,7 @@ function ShipmentCard({
   shipment: PickupShipment;
   today: string | null;
 }) {
-  const tab = shipmentTab(shipment);
+  const tab = shipmentTab(shipment, today);
   const urgent = isUrgentShipment(shipment, today);
 
   return (
@@ -590,7 +591,7 @@ function TasksView({
   const [city, setCity] = useState("");
   const [area, setArea] = useState("");
   const [shipmentMerchant, setShipmentMerchant] = useState("");
-  const [shipmentStatus, setShipmentStatus] = useState("");
+  const [shipmentStatus, setShipmentStatus] = useState<PickupShipmentTab | "">("");
   const today = khartoumDay(new Date().toISOString());
   const cities = uniqueLabels(merchants.map(cityOf));
   const areas = uniqueLabels(merchants.map(areaOf));
@@ -608,9 +609,7 @@ function TasksView({
   const visibleShipments = activeShipments.filter((shipment) => {
     if (!matchesShipmentFilter(shipment, filter, today)) return false;
     if (shipmentMerchant && shipment.merchantName !== shipmentMerchant) return false;
-    if (shipmentStatus && !matchesShipmentFilter(shipment, shipmentStatus as TaskFilter, today)) {
-      return false;
-    }
+    if (shipmentStatus && !matchesShipmentFilter(shipment, shipmentStatus, today)) return false;
     if (!needle) return true;
     return `${shipment.trackingCode} ${shipment.merchantName}`.toLowerCase().includes(needle.toLowerCase());
   });
@@ -720,7 +719,7 @@ function TasksView({
               />
               <FilterSelect
                 value={shipmentStatus}
-                onChange={setShipmentStatus}
+                onChange={(next) => setShipmentStatus(isShipmentTab(next) ? next : "")}
                 label="الحالة"
                 options={SHIPMENT_TABS.map((status) => ({
                   value: status,
