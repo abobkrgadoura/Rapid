@@ -95,7 +95,9 @@ AS $fn$
       (SELECT d.staff_type::text FROM public.profiles AS d WHERE d.id = auth.uid()),
       'pickup_driver'
     ) = 'pickup_driver'
-  ORDER BY o.created_at DESC, o.id
+  -- Pending parcels sort first so the LIMIT can never cut off a parcel the
+  -- driver still has to collect, however old it is.
+  ORDER BY (o.status = 'pending') DESC, o.created_at DESC, o.id
   LIMIT 200;
 $fn$;
 

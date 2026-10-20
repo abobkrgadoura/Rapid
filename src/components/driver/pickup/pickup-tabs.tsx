@@ -47,7 +47,7 @@ import type { SessionProfile } from "@/lib/auth/profile";
 import type { DriverAlert, PickupMerchant } from "@/lib/data/driver-dashboard";
 import { navigationHref } from "@/lib/driver/navigation";
 import {
-  isShipmentToday,
+  isShipmentVisible,
   khartoumDay,
   matchesShipmentFilter,
   SHIPMENT_TAB_LABEL,
@@ -181,7 +181,7 @@ function ShipmentCard({
   shipment: PickupShipment;
   today: string | null;
 }) {
-  const tab = shipmentTab(shipment, today);
+  const tab = shipmentTab(shipment);
   const urgent = isUrgentShipment(shipment, today);
 
   return (
@@ -602,13 +602,15 @@ function TasksView({
     if (!needle) return true;
     return `${merchant.companyName} ${merchant.address} ${merchant.zone}`.includes(needle);
   });
-  // Daily view: only parcels created or updated today (Khartoum). Older
-  // picked-up and in-transit rows are history and never reach this list.
-  const todaysShipments = shipments.filter((shipment) => isShipmentToday(shipment, today));
-  const visibleShipments = todaysShipments.filter((shipment) => {
+  // Active view: every pending parcel (whatever its date), plus parcels that
+  // changed status today (Khartoum). Older collected rows are history.
+  const activeShipments = shipments.filter((shipment) => isShipmentVisible(shipment, today));
+  const visibleShipments = activeShipments.filter((shipment) => {
     if (!matchesShipmentFilter(shipment, filter, today)) return false;
     if (shipmentMerchant && shipment.merchantName !== shipmentMerchant) return false;
-    if (shipmentStatus && shipmentTab(shipment, today) !== shipmentStatus) return false;
+    if (shipmentStatus && !matchesShipmentFilter(shipment, shipmentStatus as TaskFilter, today)) {
+      return false;
+    }
     if (!needle) return true;
     return `${shipment.trackingCode} ${shipment.merchantName}`.toLowerCase().includes(needle.toLowerCase());
   });
@@ -712,7 +714,7 @@ function TasksView({
                 value={shipmentMerchant}
                 onChange={setShipmentMerchant}
                 label="التاجر"
-                options={uniqueLabels(todaysShipments.map((item) => item.merchantName)).map(
+                options={uniqueLabels(activeShipments.map((item) => item.merchantName)).map(
                   (name) => ({ value: name, label: name }),
                 )}
               />

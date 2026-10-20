@@ -19,6 +19,7 @@ import {
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { confirmBatchPickup, scanPickupParcel } from "@/actions/hub";
+import { BarcodeCamera } from "@/components/driver/pickup/barcode-camera";
 import { usePickupFeedback } from "@/components/driver/pickup/pickup-feedback";
 import { useDriverPrefs } from "@/components/driver/preferences";
 import { QrMark } from "@/components/driver/pickup/qr-mark";
@@ -176,11 +177,16 @@ export function PickupScanner({
     if (continuous || prefs.highAlert) playDriverAlert();
   }
 
-  async function submitScan(event: FormEvent<HTMLFormElement>) {
+  function submitScan(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    void registerCode(input);
+  }
+
+  /** Shared by the manual field and the camera: validates, then records the scan on the server. */
+  async function registerCode(raw: string) {
     if (inFlight.current) return;
 
-    const code = normalizeTrackingCode(input);
+    const code = normalizeTrackingCode(raw);
     if (code === null) {
       setError(HUB_ERROR_MESSAGES.invalid_code);
       return;
@@ -188,7 +194,6 @@ export function PickupScanner({
     if (codes.includes(code)) {
       setInput("");
       setError(`${code} · ${t.scannedOf}`);
-      inputRef.current?.focus();
       return;
     }
 
@@ -212,7 +217,6 @@ export function PickupScanner({
     } finally {
       inFlight.current = false;
       setBusy(null);
-      requestAnimationFrame(() => inputRef.current?.focus());
     }
   }
 
@@ -424,6 +428,13 @@ export function PickupScanner({
                 {companyName} · {t.scannedOf} {codes.length} {t.of} {total} {t.parcel}
               </p>
 
+              <div className="mt-4">
+                <BarcodeCamera onScan={(text) => void registerCode(text)} disabled={working} />
+                <p className="mt-2 text-center text-xs font-medium text-gray-500">
+                  وجّه الكاميرا نحو باركود أو QR الطرد، أو أدخل الرمز يدويًا أدناه
+                </p>
+              </div>
+
               <label className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-zinc-100 bg-white px-4 py-3">
                 <span className="text-sm font-semibold text-[#082D52]">{t.continuous}</span>
                 <input
@@ -453,7 +464,6 @@ export function PickupScanner({
                     if (error) setError(null);
                   }}
                   disabled={working}
-                  autoFocus
                   dir="ltr"
                   inputMode="text"
                   autoCapitalize="characters"

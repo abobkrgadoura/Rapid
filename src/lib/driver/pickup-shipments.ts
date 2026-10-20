@@ -70,35 +70,27 @@ export function khartoumDay(iso: string): string | null {
   }).format(date);
 }
 
-/** Still waiting to be collected from the merchant. */
-function isOpen(status: OrderStatus): boolean {
-  return status === "pending" || status === "assigned";
+/** Still sitting at the merchant: the only status the driver still has to collect. */
+function isWaitingAtMerchant(status: OrderStatus): boolean {
+  return status === "pending";
 }
 
 /**
- * Maps a database status to the pickup driver's Arabic tab.
- *   pending, created today        -> new (جديدة)
- *   pending, created before today -> waiting (قيد الانتظار)
- *   assigned                      -> waiting
+ * Maps a database status to the pickup driver's Arabic badge.
+ *   pending                           -> waiting (قيد الانتظار): still at the merchant
  *   picked_up, at_hub, in_transit,
- *   delivered, returned           -> picked (تم الاستلام): the driver's part is done
- *   cancelled                     -> cancelled (ملغاة)
- * `today` is a YYYY-MM-DD Khartoum day; when it is unknown a pending parcel
- * counts as waiting.
+ *   assigned, delivered, returned     -> picked (تم الاستلام): the driver's part is done
+ *   cancelled                         -> cancelled (ملغاة)
+ * "new" (جديدة) is not a badge: it is the filter for pending parcels requested
+ * today, see `matchesShipmentFilter`.
  */
-export function shipmentTab(
-  shipment: Pick<PickupShipment, "status" | "createdAt">,
-  today: string | null,
-): PickupShipmentTab {
+export function shipmentTab(shipment: Pick<PickupShipment, "status">): PickupShipmentTab {
   switch (shipment.status) {
-    case "pending": {
-      const day = khartoumDay(shipment.createdAt);
-      return day !== null && today !== null && day === today ? "new" : "waiting";
-    }
-    case "assigned":
+    case "pending":
       return "waiting";
     case "cancelled":
       return "cancelled";
+    case "assigned":
     case "picked_up":
     case "at_hub":
     case "in_transit":
@@ -108,35 +100,64 @@ export function shipmentTab(
   }
 }
 
-/** Urgent = still uncollected and requested before today (Khartoum). */
+/** Urgent = still at the merchant and requested before today (Khartoum). */
 export function isUrgentShipment(
   shipment: Pick<PickupShipment, "status" | "createdAt">,
   today: string | null,
 ): boolean {
-  if (!isOpen(shipment.status)) return false;
+  if (!isWaitingAtMerchant(shipment.status)) return false;
   const day = khartoumDay(shipment.createdAt);
   // YYYY-MM-DD strings sort chronologically.
   return day !== null && today !== null && day < today;
 }
 
 /**
- * The daily Shipments view keeps only parcels created or updated today
- * (Khartoum). Older picked-up or in-transit rows belong to history, not here.
+ * Whether a shipment belongs in the active Shipments list (قائمة الشحنات).
+ *   pending                              -> always, whatever its date: the
+ *                                           driver still has to collect it
+ *   everything else (picked_up, at_hub,
+ *   in_transit, ...)                     -> only when `updatedAt` (or `createdAt`
+ *                                           when that is empty) is today in
+ *                                           Khartoum. Older rows are history.
  */
-export function isShipmentToday(
-  shipment: Pick<PickupShipment, "createdAt" | "updatedAt">,
+export function isShipmentVisible(
+  shipment: Pick<PickupShipment, "status" | "createdAt" | "updatedAt">,
   today: string | null,
 ): boolean {
+  if (isWaitingAtMerchant(shipment.status)) return true;
   if (today === null) return false;
-  return khartoumDay(shipment.createdAt) === today || khartoumDay(shipment.updatedAt) === today;
+  return khartoumDay(shipment.updatedAt || shipment.createdAt) === today;
 }
 
+/**
+ * Filter chip / status dropdown rule.
+ *   all       every visible shipment
+ *   urgent    pending and requested before today
+ *   new       pending and requested today (جديدة)
+ *   waiting   status is exactly `pending` (قيد الانتظار)
+ *   picked    picked_up / at_hub / in_transit and the other post-pickup statuses (تم الاستلام)
+ *   cancelled cancelled
+ */
 export function matchesShipmentFilter(
   shipment: PickupShipment,
   filter: TaskFilter,
   today: string | null,
 ): boolean {
-  if (filter === "all") return true;
-  if (filter === "urgent") return isUrgentShipment(shipment, today);
-  return shipmentTab(shipment, today) === filter;
+  switch (filter) {
+    case "all":
+      return true;
+    case "urgent":
+      return isUrgentShipment(shipment, today);
+    case "new":
+      return (
+        isWaitingAtMerchant(shipment.status) &&
+        today !== null &&
+        khartoumDay(shipment.createdAt) === today
+      );
+    case "waiting":
+      return shipment.status === "pending";
+    case "picked":
+    case "cancelled":
+      return shipmentTab(shipment) === filter;
+  }
 }
