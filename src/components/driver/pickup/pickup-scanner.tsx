@@ -19,9 +19,9 @@ import {
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { confirmBatchPickup, scanPickupParcel } from "@/actions/hub";
-import { usePickupFeedback } from "@/components/driver/driver-tabs";
+import { usePickupFeedback } from "@/components/driver/pickup/pickup-feedback";
 import { useDriverPrefs } from "@/components/driver/preferences";
-import { QrMark } from "@/components/driver/qr-mark";
+import { QrMark } from "@/components/driver/pickup/qr-mark";
 import {
   Dialog,
   DialogContent,

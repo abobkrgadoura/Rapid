@@ -2,7 +2,7 @@
 
 import { ChevronLeft, MapPin, Store } from "lucide-react";
 
-import { PickupScanner } from "@/components/driver/pickup-scanner";
+import { PickupScanner } from "@/components/driver/pickup/pickup-scanner";
 import { useDriverPrefs } from "@/components/driver/preferences";
 import type { PickupMerchant } from "@/lib/data/driver-dashboard";
 import { navigationHref } from "@/lib/driver/navigation";

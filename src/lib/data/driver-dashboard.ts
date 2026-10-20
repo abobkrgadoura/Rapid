@@ -2,10 +2,12 @@ import { getAuthSession } from "@/lib/auth/session";
 import { coordsFromMapsUrl, zoneFromText } from "@/lib/driver/geo";
 import { isDriverLocale } from "@/lib/driver/messages";
 import { isNavApp } from "@/lib/driver/navigation";
+import type { PickupShipment } from "@/lib/driver/pickup-shipments";
 import {
   DEFAULT_DRIVER_PREFERENCES,
   type DriverPreferences,
 } from "@/lib/driver/preferences";
+import type { DriverSurface } from "@/lib/driver/surface";
 import { canonicalMoney } from "@/lib/format-money";
 import { isVehicleType, TIME_ZONE, type VehicleType } from "@/lib/locale/sudan";
 import type { GeoPoint } from "@/lib/math";
@@ -93,6 +95,10 @@ export type DriverDashboard = {
   pickups: PickupMerchant[];
   deliveries: DriverStop[];
   alerts: DriverAlert[];
+  /** Pickup driver's own shipments. Always empty on the delivery surface. */
+  pickupShipments: PickupShipment[];
+  /** True when the shipments list could not be loaded (for example 0017 not applied). */
+  pickupShipmentsFailed: boolean;
 };
 
 export type LoadResult<T> = { ok: true; data: T } | { ok: false };
@@ -229,6 +235,91 @@ function parseStop(
   };
 }
 
+function weightOrNull(value: unknown): number | null {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && /^\d+(\.\d+)?$/.test(value.trim())
+        ? Number(value)
+        : Number.NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+/**
+ * Reads one `pickup_driver_shipments()` row. Only the fields listed here are
+ * ever copied, so even a future RPC change cannot leak a recipient field.
+ */
+function parsePickupShipment(row: unknown): PickupShipment | null {
+  if (!isRecord(row)) return null;
+  if (typeof row.id !== "string" || !UUID.test(row.id)) return null;
+  if (typeof row.tracking_code !== "string" || !row.tracking_code.trim()) return null;
+  if (!isOrderStatus(row.status)) return null;
+  if (typeof row.merchant_id !== "string" || !UUID.test(row.merchant_id)) return null;
+  const createdAt = timestampOrNull(row.created_at);
+  if (createdAt === null) return null;
+
+  const pieces = whole(row.pieces_count, 1);
+  const merchantName =
+    typeof row.company_name === "string" && row.company_name.trim()
+      ? row.company_name.trim()
+      : "المتجر";
+
+  return {
+    id: row.id.toLowerCase(),
+    trackingCode: row.tracking_code.trim(),
+    status: row.status,
+    weightKg: weightOrNull(row.weight_kg),
+    piecesCount: pieces >= 1 && pieces <= 99 ? pieces : 1,
+    createdAt,
+    merchantId: row.merchant_id.toLowerCase(),
+    merchantName,
+    pickupAddress: typeof row.pickup_address === "string" ? row.pickup_address.trim() : "",
+  };
+}
+
+/**
+ * Shipments assigned to this pickup driver (`orders.pickup_driver_id`), newest
+ * first, with the merchant's company name and pickup address.
+ *
+ * Goes through the `pickup_driver_shipments()` RPC (migration 0017). A pickup
+ * driver has no `orders` RLS policy, so selecting from the table with their JWT
+ * returns nothing, and a policy would expose recipient columns. The RPC filters
+ * on `pickup_driver_id = auth.uid()` itself and returns logistics fields only:
+ * id, tracking code, status, weight, pieces, created_at, merchant name and
+ * pickup address. Recipient name, phone, dropoff address and dropoff GPS are
+ * never selected.
+ *
+ * `pickupDriverId` must be the signed-in driver. Anything else is refused.
+ */
+export async function getPickupDriverShipments(
+  pickupDriverId: string,
+): Promise<LoadResult<PickupShipment[]>> {
+  const session = await getAuthSession();
+  if (
+    session.status !== "ready" ||
+    session.profile.role !== "driver" ||
+    session.profile.id !== pickupDriverId ||
+    (session.profile.staffType !== null && session.profile.staffType !== "pickup_driver")
+  ) {
+    return { ok: false };
+  }
+
+  const supabase = await createClient();
+  const result = await supabase.rpc("pickup_driver_shipments");
+  if (result.error || !Array.isArray(result.data)) {
+    console.error("pickup driver shipments", result.error?.message);
+    return { ok: false };
+  }
+
+  const shipments: PickupShipment[] = [];
+  for (const row of result.data) {
+    const shipment = parsePickupShipment(row);
+    if (!shipment) return { ok: false };
+    shipments.push(shipment);
+  }
+  return { ok: true, data: shipments };
+}
+
 const PROFILE_FULL =
   "current_cash_in_hand, commission_per_delivery, preferred_nav_app, driver_dark_mode, high_alert_sound, active_vehicle, driver_locale, vehicle_type";
 const PROFILE_PHASE13 =
@@ -253,31 +344,56 @@ async function readProfile(
   return null;
 }
 
+/** Stands in for a query the driver's surface never runs. */
+const NO_ROWS = Promise.resolve({
+  data: [] as unknown[],
+  error: null,
+  count: null,
+  status: 200,
+  statusText: "OK",
+});
+
 /**
  * Wallet, merchants waiting for pickup, and the driver's own deliveries.
  * Everything is read with the driver's own JWT.
+ *
+ * `surface` limits what is fetched, so a pickup driver's payload never holds
+ * delivery rows (customer details) and a delivery driver's never holds pickup
+ * groups or pickup shipments. `legacy` (no staff_type) loads both, as before.
  */
-export async function loadDriverDashboard(): Promise<LoadResult<DriverDashboard>> {
+export async function loadDriverDashboard(
+  surface: DriverSurface = "legacy",
+): Promise<LoadResult<DriverDashboard>> {
   const session = await getAuthSession();
-  if (session.status !== "ready" || session.profile.role !== "driver") {
+  if (
+    session.status !== "ready" ||
+    session.profile.role !== "driver" ||
+    surface === "unsupported"
+  ) {
     return { ok: false };
   }
 
+  const wantPickups = surface === "pickup" || surface === "legacy";
+  const wantDeliveries = surface === "delivery" || surface === "legacy";
+
   const supabase = await createClient();
-  const [wallet, groups, orders, profile, merchants, delivered, alertsResult] = await Promise.all([
+  const [wallet, groups, orders, profile, merchants, delivered, alertsResult, shipmentsResult] =
+    await Promise.all([
     supabase
       .from("wallets")
       .select("balance, currency")
       .eq("driver_id", session.profile.id)
       .maybeSingle(),
-    supabase.rpc("pickup_merchant_groups"),
-    supabase
-      .from("orders_readable")
-      .select(STOP_FULL)
-      .eq("driver_id", session.profile.id)
-      .or("status.eq.in_transit,and(status.eq.delivered,ledger_posted_at.is.null)")
-      .order("created_at", { ascending: true })
-      .limit(200),
+    wantPickups ? supabase.rpc("pickup_merchant_groups") : NO_ROWS,
+    wantDeliveries
+      ? supabase
+          .from("orders_readable")
+          .select(STOP_FULL)
+          .eq("driver_id", session.profile.id)
+          .or("status.eq.in_transit,and(status.eq.delivered,ledger_posted_at.is.null)")
+          .order("created_at", { ascending: true })
+          .limit(200)
+      : NO_ROWS,
     readProfile(supabase, session.profile.id),
     supabase.rpc("driver_assigned_merchants"),
     supabase
@@ -293,9 +409,12 @@ export async function loadDriverDashboard(): Promise<LoadResult<DriverDashboard>
       .is("seen_at", null)
       .order("created_at", { ascending: false })
       .limit(5),
+    wantPickups
+      ? getPickupDriverShipments(session.profile.id)
+      : Promise.resolve<LoadResult<PickupShipment[]>>({ ok: true, data: [] }),
   ]);
 
-  const listed = missingColumn(orders.error?.code)
+  const listed = wantDeliveries && missingColumn(orders.error?.code)
     ? await supabase
         .from("orders_readable")
         .select(STOP_BASE)
@@ -374,6 +493,8 @@ export async function loadDriverDashboard(): Promise<LoadResult<DriverDashboard>
       pickups,
       deliveries,
       alerts: readAlerts(alertsResult),
+      pickupShipments: shipmentsResult.ok ? shipmentsResult.data : [],
+      pickupShipmentsFailed: !shipmentsResult.ok,
     },
   };
 }

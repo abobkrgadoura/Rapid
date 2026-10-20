@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Bell,
   Calendar,
   Car,
   CheckCircle2,
@@ -18,37 +17,24 @@ import {
   Mail,
   Map as MapIcon,
   MapPin,
-  Menu,
   Package,
   PackageCheck,
   Phone,
   ScanBarcode,
   Scale,
   Search,
-  Settings,
   ShieldCheck,
   User,
   X,
 } from "lucide-react";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useState,
-  type ReactNode,
-} from "react";
+import { useCallback, useState, type ReactNode } from "react";
 
-import { PickupScanner } from "@/components/driver/pickup-scanner";
 import { useDriverName, useDriverProfile } from "@/components/driver/driver-frame";
+import { DriverTopBar, iconButton } from "@/components/driver/driver-top-bar";
+import { PickupFeedbackContext, type PickupNotice } from "@/components/driver/pickup/pickup-feedback";
+import { PickupMerchantCard } from "@/components/driver/pickup/pickup-merchant-card";
+import { PickupScanner } from "@/components/driver/pickup/pickup-scanner";
 import { useDriverPrefs } from "@/components/driver/preferences";
-import { PickupMerchantCard } from "@/components/driver/stop-cards";
-import { DriverSettingsButton } from "@/components/driver/settings-sheet";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -60,29 +46,24 @@ import { signOut } from "@/lib/auth/actions";
 import type { SessionProfile } from "@/lib/auth/profile";
 import type { DriverAlert, PickupMerchant } from "@/lib/data/driver-dashboard";
 import { navigationHref } from "@/lib/driver/navigation";
-import { TIME_ZONE } from "@/lib/locale/sudan";
+import {
+  khartoumDay,
+  matchesShipmentFilter,
+  SHIPMENT_TAB_LABEL,
+  SHIPMENT_TAB_STYLE,
+  shipmentTab,
+  isUrgentShipment,
+  type PickupShipment,
+  type PickupShipmentTab,
+  type TaskFilter,
+} from "@/lib/driver/pickup-shipments";
 
 /**
- * Pickup driver home. Deliveries are not mixed into this screen.
- * The confirmation notice lives here because the merchant card unmounts
- * the scanner as soon as its last parcel is collected.
+ * Pickup driver app shell: home, tasks, map and profile. Deliveries are not
+ * mixed into these screens, and no customer data reaches them.
  */
 
-type PickupNotice = { companyName: string; count: number };
-
-const PickupFeedbackContext = createContext<(notice: PickupNotice) => void>(
-  () => {},
-);
-
-export function usePickupFeedback() {
-  return useContext(PickupFeedbackContext);
-}
-
-const iconButton =
-  "pointer-events-auto relative z-10 flex size-11 min-h-11 min-w-11 cursor-pointer touch-manipulation items-center justify-center rounded-xl text-white outline-none";
-
 type TaskMode = "merchants" | "shipments";
-type TaskFilter = "all" | "urgent" | "new" | "waiting" | "picked" | "cancelled";
 
 const TASK_FILTERS: ReadonlyArray<{ id: TaskFilter; label: string }> = [
   { id: "all", label: "الكل" },
@@ -108,17 +89,6 @@ const CITY_NEEDLES = [
   "الجنينة",
   "دنقلا",
 ] as const;
-
-function khartoumDay(iso: string): string | null {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
-}
 
 /** City shown in the tasks filter. Khartoum localities stay under الخرطوم. */
 function cityOf(merchant: PickupMerchant): string {
@@ -166,55 +136,6 @@ function matchesTaskFilter(merchant: PickupMerchant, filter: TaskFilter, today: 
   return day !== null && day === today;
 }
 
-type MockShipment = {
-  trackingCode: string;
-  merchantName: string;
-  weightKg: number;
-  pieces: number;
-  status: Exclude<TaskFilter, "all" | "urgent">;
-  urgent: boolean;
-};
-
-const SHIPMENT_STATUS_LABEL: Record<MockShipment["status"], string> = {
-  new: "جديدة",
-  waiting: "قيد الانتظار",
-  picked: "تم الاستلام",
-  cancelled: "ملغاة",
-};
-
-const SHIPMENT_STATUS_STYLE: Record<MockShipment["status"], string> = {
-  new: "bg-[#E8F1FF] text-[#0F62FF]",
-  waiting: "bg-[#FFF1E6] text-orange-500",
-  picked: "bg-[#E7F8EF] text-emerald-600",
-  cancelled: "bg-[#FDECEC] text-red-500",
-};
-
-/** Static placeholders. Logistics fields only: no customer name, phone or location. */
-const MOCK_SHIPMENTS: ReadonlyArray<MockShipment> = [
-  {
-    trackingCode: "WSL-000130",
-    merchantName: "متجر النيل للإلكترونيات",
-    weightKg: 2.5,
-    pieces: 1,
-    status: "new",
-    urgent: false,
-  },
-  {
-    trackingCode: "WSL-000131",
-    merchantName: "مؤسسة الأمل التجارية",
-    weightKg: 4,
-    pieces: 3,
-    status: "waiting",
-    urgent: true,
-  },
-];
-
-function matchesShipmentFilter(shipment: MockShipment, filter: TaskFilter): boolean {
-  if (filter === "all") return true;
-  if (filter === "urgent") return shipment.urgent;
-  return shipment.status === filter;
-}
-
 function FilterSelect({
   value,
   onChange,
@@ -248,28 +169,52 @@ function FilterSelect({
   );
 }
 
-function ShipmentCard({ shipment }: { shipment: MockShipment }) {
+/**
+ * One of this driver's shipments. Logistics and merchant fields only: the
+ * `PickupShipment` type has no customer name, phone or dropoff location.
+ */
+function ShipmentCard({
+  shipment,
+  today,
+}: {
+  shipment: PickupShipment;
+  today: string | null;
+}) {
+  const tab = shipmentTab(shipment, today);
+  const urgent = isUrgentShipment(shipment, today);
+
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between gap-2">
         <span dir="ltr" className="font-mono text-base font-bold text-[#082D52]">
           {shipment.trackingCode}
         </span>
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-bold ${SHIPMENT_STATUS_STYLE[shipment.status]}`}
-        >
-          {SHIPMENT_STATUS_LABEL[shipment.status]}
+        <span className="flex shrink-0 items-center gap-1.5">
+          {urgent ? (
+            <span className="rounded-full bg-[#FDECEC] px-3 py-1 text-xs font-bold text-red-500">
+              عاجلة
+            </span>
+          ) : null}
+          <span className={`rounded-full px-3 py-1 text-xs font-bold ${SHIPMENT_TAB_STYLE[tab]}`}>
+            {SHIPMENT_TAB_LABEL[tab]}
+          </span>
         </span>
       </div>
       <p className="truncate text-sm font-bold text-gray-700">{shipment.merchantName}</p>
+      {shipment.pickupAddress ? (
+        <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
+          <MapPin className="size-4 shrink-0 text-gray-400" aria-hidden />
+          <span className="min-w-0 truncate">{shipment.pickupAddress}</span>
+        </p>
+      ) : null}
       <div className="flex items-center gap-4 text-xs font-semibold text-gray-500">
         <span className="flex items-center gap-1.5">
           <Scale className="size-4 text-gray-400" aria-hidden />
-          الوزن: {shipment.weightKg} كجم
+          الوزن: {shipment.weightKg === null ? "—" : `${shipment.weightKg} كجم`}
         </span>
         <span className="flex items-center gap-1.5">
           <Package className="size-4 text-gray-400" aria-hidden />
-          عدد القطع: {shipment.pieces}
+          عدد القطع: {shipment.piecesCount}
         </span>
       </div>
     </div>
@@ -625,108 +570,17 @@ function ProfileView({
   );
 }
 
-export function DriverTopBar({
-  alerts,
-  onDismissAlert,
-}: {
-  alerts: DriverAlert[];
-  onDismissAlert?: (id: string) => void | Promise<void>;
-}) {
-  const { t } = useDriverPrefs();
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [pendingAlert, setPendingAlert] = useState<string | null>(null);
-
-  async function dismiss(id: string) {
-    if (!onDismissAlert || pendingAlert) return;
-    setPendingAlert(id);
-    await onDismissAlert(id);
-    setPendingAlert(null);
-  }
-
-  return (
-    <div className="relative flex w-full items-center justify-between px-4 pt-6">
-      <DropdownMenu>
-        <DropdownMenuTrigger className={iconButton} aria-label={t.notifications}>
-          <Bell className="size-6 text-white" />
-          {alerts.length > 0 ? (
-            <span className="absolute top-2 end-2 size-2.5 rounded-full bg-red-500" />
-          ) : null}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-72 p-2">
-          {alerts.length === 0 ? (
-            <p className="text-muted-foreground px-2 py-3 text-center text-sm">{t.noAlerts}</p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {alerts.map((item) => (
-                <li
-                  key={item.id}
-                  className="flex items-start justify-between gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950"
-                >
-                  <p className="min-w-0">
-                    <span dir="ltr" className="font-mono text-xs font-bold">
-                      {item.trackingCode}
-                    </span>
-                    <span className="mt-1 block leading-snug">
-                      {item.kind === "retry_delivery" ? t.retryNotice : t.returnNotice}
-                    </span>
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => void dismiss(item.id)}
-                    disabled={pendingAlert === item.id}
-                    aria-label={t.dismiss}
-                    className="flex size-8 shrink-0 items-center justify-center rounded-lg"
-                  >
-                    <X className="size-4" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <div className="pointer-events-none absolute inset-x-0 top-6 flex h-11 items-center justify-center">
-        <img
-          src="/logo-white.png"
-          alt="Rapid"
-          className="h-10 w-[10.75rem] object-cover object-center"
-        />
-      </div>
-
-      <DropdownMenu>
-        <DropdownMenuTrigger className={iconButton} aria-label={t.menu}>
-          <Menu className="size-6 text-white" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-44">
-          <DropdownMenuItem
-            className="min-h-11 px-3 text-base"
-            onClick={() => setSettingsOpen(true)}
-          >
-            <Settings className="size-4" />
-            {t.settings}
-          </DropdownMenuItem>
-          <button
-            type="button"
-            onClick={() => void signOut()}
-            className="flex min-h-11 w-full cursor-pointer items-center gap-1.5 rounded-md px-3 text-start text-base outline-none hover:bg-accent"
-          >
-            <LogOut className="size-4" />
-            {t.signOut}
-          </button>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <DriverSettingsButton hideTrigger open={settingsOpen} onOpenChange={setSettingsOpen} />
-    </div>
-  );
-}
+const SHIPMENT_TABS = ["new", "waiting", "picked", "cancelled"] as const satisfies ReadonlyArray<PickupShipmentTab>;
 
 function TasksView({
   merchants,
+  shipments,
+  shipmentsFailed,
   onBack,
 }: {
   merchants: PickupMerchant[];
+  shipments: PickupShipment[];
+  shipmentsFailed: boolean;
   onBack: () => void;
 }) {
   const [taskMode, setTaskMode] = useState<TaskMode>("merchants");
@@ -747,10 +601,10 @@ function TasksView({
     if (!needle) return true;
     return `${merchant.companyName} ${merchant.address} ${merchant.zone}`.includes(needle);
   });
-  const visibleShipments = MOCK_SHIPMENTS.filter((shipment) => {
-    if (!matchesShipmentFilter(shipment, filter)) return false;
+  const visibleShipments = shipments.filter((shipment) => {
+    if (!matchesShipmentFilter(shipment, filter, today)) return false;
     if (shipmentMerchant && shipment.merchantName !== shipmentMerchant) return false;
-    if (shipmentStatus && shipment.status !== shipmentStatus) return false;
+    if (shipmentStatus && shipmentTab(shipment, today) !== shipmentStatus) return false;
     if (!needle) return true;
     return `${shipment.trackingCode} ${shipment.merchantName}`.toLowerCase().includes(needle.toLowerCase());
   });
@@ -854,7 +708,7 @@ function TasksView({
                 value={shipmentMerchant}
                 onChange={setShipmentMerchant}
                 label="التاجر"
-                options={uniqueLabels(MOCK_SHIPMENTS.map((item) => item.merchantName)).map(
+                options={uniqueLabels(shipments.map((item) => item.merchantName)).map(
                   (name) => ({ value: name, label: name }),
                 )}
               />
@@ -862,17 +716,25 @@ function TasksView({
                 value={shipmentStatus}
                 onChange={setShipmentStatus}
                 label="الحالة"
-                options={(Object.keys(SHIPMENT_STATUS_LABEL) as MockShipment["status"][]).map(
-                  (status) => ({ value: status, label: SHIPMENT_STATUS_LABEL[status] }),
-                )}
+                options={SHIPMENT_TABS.map((status) => ({
+                  value: status,
+                  label: SHIPMENT_TAB_LABEL[status],
+                }))}
               />
             </div>
 
-            {visibleShipments.length === 0 ? (
+            {shipmentsFailed ? (
+              <p
+                role="alert"
+                className="rounded-2xl bg-red-50 px-4 py-4 text-center text-sm font-semibold text-red-600"
+              >
+                تعذّر تحميل الشحنات. حاول مرة أخرى بعد قليل.
+              </p>
+            ) : visibleShipments.length === 0 ? (
               <p className="py-10 text-center text-sm font-semibold text-gray-400">لا توجد شحنات</p>
             ) : (
               visibleShipments.map((shipment) => (
-                <ShipmentCard key={shipment.trackingCode} shipment={shipment} />
+                <ShipmentCard key={shipment.id} shipment={shipment} today={today} />
               ))
             )}
           </>
@@ -882,12 +744,14 @@ function TasksView({
   );
 }
 
-export function DriverTabs({
+export function PickupTabs({
   todayCount,
   completedCount,
   waitingCount,
   urgentCount,
   merchants = [],
+  shipments,
+  shipmentsFailed,
   alerts,
   onDismissAlert,
   pickups,
@@ -897,6 +761,8 @@ export function DriverTabs({
   waitingCount: number;
   urgentCount: number;
   merchants?: PickupMerchant[];
+  shipments: PickupShipment[];
+  shipmentsFailed: boolean;
   alerts: DriverAlert[];
   onDismissAlert: (id: string) => void | Promise<void>;
   pickups: ReactNode;
@@ -1043,7 +909,12 @@ export function DriverTabs({
         </>
         )}
         {currentView === "tasks" && (
-          <TasksView merchants={merchants} onBack={() => setCurrentView("home")} />
+          <TasksView
+            merchants={merchants}
+            shipments={shipments}
+            shipmentsFailed={shipmentsFailed}
+            onBack={() => setCurrentView("home")}
+          />
         )}
         {currentView === "map" && <MapView onBack={() => setCurrentView("home")} />}
         {currentView === "profile" && profile ? (

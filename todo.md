@@ -314,7 +314,7 @@ Started on the user's explicit instruction while earlier "apply migration" items
 ## Phase 19: UI Redesign - Pickup Driver & Brand Colors
 - [x] Inject Rapid brand colors (#082D52 dark, #0F62FF primary) and a soft app background into `globals.css`.
 - [x] Redesign Pickup task cards: separated cards, rounded-2xl, status badges (e.g., 'Waiting', 'Completed' with distinct colors), and a chevron arrow instead of text buttons.
-- [ ] Apply `supabase/migrations/0016_pickup_card_requested_at.sql` so each pickup card can show the task time (the card hides the clock until `earliest_created_at` is returned)
+- [x] Apply `supabase/migrations/0016_pickup_card_requested_at.sql` so each pickup card can show the task time (the card hides the clock until `earliest_created_at` is returned)
 - [x] Pickup driver home matches the pickup mockup: flat navy hero (menu, RAPID, bell, profile), four stat cards, merchant barcode button, and recent shipments. The Pickups/Deliveries pills are gone; this screen shows pickup work only.
   - [x] Polish the driver header: hide pickup financial text, blend the navbar into the navy hero, and stretch the three stat cards
 - [x] Match the pickup mockup header and bottom bar (visual only; nav destinations are still not routes)
@@ -348,5 +348,21 @@ Started on the user's explicit instruction while the Phase 19 migration apply it
 Started on the user's explicit instruction while the Phase 19 migration apply item is still open. UI only; no new data fetching.
 - [x] Add a leading icon to every `ProfileView` data row and match the mockup values for the mock fields (employee id R1050, vehicle سيارة, plate س ص ع 123, dates 2023-01-01 and 1990-05-15). Name and email stay on the session (fallbacks أحمد محمد and a.mohamed@rapid.com). Password and support rows use `Lock` and `HelpCircle`. `tsc` and `eslint` clean (existing logo `<img>` warning only). Signed-out `/driver` redirects to login, so the screen was not clicked through in a driver session. Password and support rows stay visual only.
 
-## Phase 20: UI Redesign - Delivery Driver
-- [ ] (Pending) Apply the new visual identity to the delivery driver screens.
+## Phase 20: Role Separation (Pickup vs. Delivery)
+- [x] Modify the routing and main driver entry point (`src/app/driver/page.tsx` or `src/components/driver/driver-frame.tsx`) to check the `staff_type` field ('pickup_driver' or 'delivery_driver').
+- [x] Create separate directory structures for the two roles (e.g., `src/components/driver/pickup/` and `src/components/driver/delivery/`).
+- [x] Move existing pickup-specific components into the `pickup` directory (scanner, merchant card, tabs, QR mark, feedback context) and delivery ones into `delivery` (board, scanners, `DeliveryDriverHome`). The shared top bar is `driver-top-bar.tsx`.
+- [x] Carry `staff_type` on the session profile; route `/driver` by it (`pickup_driver` -> pickup home, `delivery_driver` -> delivery home, `hub_operator` -> denied, unset legacy accounts keep the old data-based choice).
+
+## Phase 21: Backend Integration for Pickup Driver
+- [x] Update data fetching logic in `src/lib/data/driver-dashboard.ts` (or equivalent) to retrieve real shipments for the pickup driver using the `pickup_driver_id` column.
+- [x] Bind the real data to the "Shipments" tab in the pickup driver's `TasksView`, replacing `MOCK_SHIPMENTS`.
+- [x] Ensure strict adherence to the privacy rule: No customer details (phone, dropoff location) are fetched or displayed for the pickup driver.
+- [x] Migration `0017_pickup_driver_shipments.sql`: nullable `orders.weight_kg` (no `weight` column existed) and the `pickup_driver_shipments()` security-definer RPC. A pickup driver has no `orders` RLS policy by design (0004), so a plain `.eq('pickup_driver_id', ...)` select returns nothing; the RPC returns logistics and merchant fields only.
+- [x] Code checks: `tsc` and `eslint` clean (two existing logo `<img>` warnings). Not clicked through in a signed-in pickup or delivery driver session, and `0017` has not been run against a database.
+- [ ] Apply `supabase/migrations/0017_pickup_driver_shipments.sql` to the Supabase project (the Shipments tab shows a load error until it is applied)
+
+## Phase 22: UI Redesign & Integration - Delivery Driver
+- [ ] Build the new Delivery Driver UI components (Home, Tasks, Shipment Details, Navigation/Map, Barcode Scanner, Profile) to match the new visual identity and the provided mockups.
+- [ ] Ensure the delivery driver interface displays full customer details (phone, dropoff location) as they are responsible for final delivery.
+- [ ] Update data fetching to retrieve real shipments for delivery using the `driver_id` column.

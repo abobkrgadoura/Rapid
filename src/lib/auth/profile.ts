@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { isStaffType, type StaffType } from "@/lib/admin/labels";
 import { isAppRole, type AppRole } from "@/lib/auth/roles";
 
 export type SessionProfile = {
@@ -7,6 +8,11 @@ export type SessionProfile = {
   role: AppRole;
   fullName: string | null;
   email: string | null;
+  /**
+   * Staff specialty (migration 0007). Only meaningful for `driver` accounts.
+   * Null for accounts created before 0007. Never a role: it does not grant access.
+   */
+  staffType: StaffType | null;
 };
 
 type ProfileRow = {
@@ -15,6 +21,7 @@ type ProfileRow = {
   full_name: string | null;
   email: string | null;
   is_active?: boolean | null;
+  staff_type?: string | null;
 };
 
 function toProfile(row: ProfileRow): SessionProfile | null {
@@ -24,6 +31,7 @@ function toProfile(row: ProfileRow): SessionProfile | null {
     role: row.role,
     fullName: row.full_name,
     email: row.email,
+    staffType: isStaffType(row.staff_type) ? row.staff_type : null,
   };
 }
 
@@ -34,7 +42,7 @@ const UNDEFINED_COLUMN = "42703";
  * Reads the caller's profile with their own JWT. RLS only returns their row.
  * A missing row, an unknown role, or a suspended account (is_active = false,
  * migration 0007) is denied (null), never defaulted. Before 0007 exists the
- * column is absent and every account counts as active.
+ * columns are absent, every account counts as active, and staffType is null.
  */
 export async function fetchSessionProfile(
   supabase: SupabaseClient,
@@ -42,7 +50,7 @@ export async function fetchSessionProfile(
 ): Promise<SessionProfile | null> {
   let result = await supabase
     .from("profiles")
-    .select("id, role, full_name, email, is_active")
+    .select("id, role, full_name, email, is_active, staff_type")
     .eq("id", userId)
     .maybeSingle();
 
