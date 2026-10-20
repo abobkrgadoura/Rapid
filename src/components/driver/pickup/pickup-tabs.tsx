@@ -47,6 +47,7 @@ import type { SessionProfile } from "@/lib/auth/profile";
 import type { DriverAlert, PickupMerchant } from "@/lib/data/driver-dashboard";
 import { navigationHref } from "@/lib/driver/navigation";
 import {
+  isShipmentToday,
   khartoumDay,
   matchesShipmentFilter,
   SHIPMENT_TAB_LABEL,
@@ -601,7 +602,10 @@ function TasksView({
     if (!needle) return true;
     return `${merchant.companyName} ${merchant.address} ${merchant.zone}`.includes(needle);
   });
-  const visibleShipments = shipments.filter((shipment) => {
+  // Daily view: only parcels created or updated today (Khartoum). Older
+  // picked-up and in-transit rows are history and never reach this list.
+  const todaysShipments = shipments.filter((shipment) => isShipmentToday(shipment, today));
+  const visibleShipments = todaysShipments.filter((shipment) => {
     if (!matchesShipmentFilter(shipment, filter, today)) return false;
     if (shipmentMerchant && shipment.merchantName !== shipmentMerchant) return false;
     if (shipmentStatus && shipmentTab(shipment, today) !== shipmentStatus) return false;
@@ -708,7 +712,7 @@ function TasksView({
                 value={shipmentMerchant}
                 onChange={setShipmentMerchant}
                 label="التاجر"
-                options={uniqueLabels(shipments.map((item) => item.merchantName)).map(
+                options={uniqueLabels(todaysShipments.map((item) => item.merchantName)).map(
                   (name) => ({ value: name, label: name }),
                 )}
               />
@@ -1034,6 +1038,8 @@ export function PickupTabs({
           address={target.address}
           phone={target.phone}
           mapsHref={maps}
+          parcels={target.parcels}
+          requestedAt={target.requestedAt}
           hideTrigger
           open
           onOpenChange={(next) => {

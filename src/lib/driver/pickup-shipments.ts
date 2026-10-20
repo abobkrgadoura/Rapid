@@ -18,9 +18,24 @@ export type PickupShipment = {
   piecesCount: number;
   /** ISO timestamp. */
   createdAt: string;
+  /** ISO timestamp of the last change. Falls back to `createdAt` before migration 0018. */
+  updatedAt: string;
   merchantId: string;
   merchantName: string;
   pickupAddress: string;
+};
+
+/**
+ * One parcel still waiting at a merchant, from `pickup_pending_parcels()`.
+ * Logistics only: no recipient name, phone or dropoff location.
+ */
+export type PickupPendingParcel = {
+  id: string;
+  trackingCode: string;
+  weightKg: number | null;
+  piecesCount: number;
+  /** ISO timestamp. */
+  createdAt: string;
 };
 
 /** The four states a pickup driver sees on a shipment card. */
@@ -102,6 +117,18 @@ export function isUrgentShipment(
   const day = khartoumDay(shipment.createdAt);
   // YYYY-MM-DD strings sort chronologically.
   return day !== null && today !== null && day < today;
+}
+
+/**
+ * The daily Shipments view keeps only parcels created or updated today
+ * (Khartoum). Older picked-up or in-transit rows belong to history, not here.
+ */
+export function isShipmentToday(
+  shipment: Pick<PickupShipment, "createdAt" | "updatedAt">,
+  today: string | null,
+): boolean {
+  if (today === null) return false;
+  return khartoumDay(shipment.createdAt) === today || khartoumDay(shipment.updatedAt) === today;
 }
 
 export function matchesShipmentFilter(

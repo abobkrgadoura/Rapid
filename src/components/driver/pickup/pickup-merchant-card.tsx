@@ -62,6 +62,8 @@ export function PickupMerchantCard({ merchant }: { merchant: PickupMerchant }) {
       address={merchant.address}
       phone={merchant.phone}
       mapsHref={maps}
+      parcels={merchant.parcels}
+      requestedAt={merchant.requestedAt}
       triggerClassName="relative mb-3 flex w-full cursor-pointer touch-manipulation flex-col gap-3 rounded-2xl border border-zinc-100 bg-white p-4 text-start shadow-sm outline-none"
     >
       <span className="flex items-center justify-between gap-3">

@@ -29,6 +29,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { playDriverAlert } from "@/lib/driver/alerts";
+import type { PickupPendingParcel } from "@/lib/driver/pickup-shipments";
 import { HUB_ERROR_MESSAGES, type HubErrorCode } from "@/lib/hub/types";
 import { TIME_ZONE } from "@/lib/locale/sudan";
 import { normalizeTrackingCode } from "@/lib/orders/tracking";
@@ -85,6 +86,10 @@ export interface PickupScannerProps {
   address: string;
   phone?: string | null;
   mapsHref?: string | null;
+  /** Real pending parcels for this merchant. Empty when the list is not available. */
+  parcels?: PickupPendingParcel[];
+  /** When the oldest pending parcel was created. */
+  requestedAt?: string | null;
   /** Classes for the card button that opens this dialog. */
   triggerClassName?: string;
   children?: ReactNode;
@@ -102,6 +107,8 @@ export function PickupScanner({
   address,
   phone = null,
   mapsHref = null,
+  parcels = [],
+  requestedAt = null,
   triggerClassName,
   children,
   open: openProp,
@@ -118,6 +125,9 @@ export function PickupScanner({
   const [error, setError] = useState<string | null>(null);
   const [doneCount, setDoneCount] = useState<number | null>(null);
   const [doneAt, setDoneAt] = useState<string | null>(null);
+  const [doneCodes, setDoneCodes] = useState<string[]>([]);
+  const [doneRemaining, setDoneRemaining] = useState(0);
+  const [partialPrompt, setPartialPrompt] = useState(false);
   const [continuous, setContinuous] = useState(false);
   const [isScanningMode, setIsScanningMode] = useState(false);
   const inFlight = useRef(false);
@@ -136,6 +146,9 @@ export function PickupScanner({
     setError(null);
     setDoneCount(null);
     setDoneAt(null);
+    setDoneCodes([]);
+    setDoneRemaining(0);
+    setPartialPrompt(false);
     setIsScanningMode(false);
     inFlight.current = false;
   }, []);
@@ -191,6 +204,7 @@ export function PickupScanner({
       setCodes((current) =>
         current.includes(result.trackingCode) ? current : [...current, result.trackingCode],
       );
+      setPartialPrompt(false);
       setInput("");
       beep();
     } catch {
@@ -209,14 +223,20 @@ export function PickupScanner({
     setBusy("confirm");
     setError(null);
     try {
+      // Only the scanned codes are sent. confirm_batch_pickup updates exactly
+      // these rows, so parcels that were not scanned stay pending.
       const result = await confirmBatchPickup(codes);
       if (!result.ok) {
         setError(describe(result.error));
+        setPartialPrompt(false);
         return;
       }
       reportPickup({ companyName, count: result.count });
+      setDoneCodes(result.trackingCodes);
+      setDoneRemaining(Math.max(0, total - result.count));
       setDoneCount(result.count);
       setDoneAt(new Date().toISOString());
+      setPartialPrompt(false);
       beep();
     } catch {
       setError(HUB_ERROR_MESSAGES.failed);
@@ -228,6 +248,20 @@ export function PickupScanner({
 
   const working = busy !== null;
   const total = Math.max(pendingCount, codes.length);
+  const missing = total - codes.length;
+  const scannedSet = new Set(codes);
+  const requestedDate = requestedAt ? new Date(requestedAt) : null;
+  const requestedValid = requestedDate !== null && !Number.isNaN(requestedDate.getTime());
+
+  /** Every parcel scanned confirms at once. Fewer needs an explicit partial-pickup OK. */
+  function requestConfirm() {
+    if (inFlight.current || codes.length === 0) return;
+    if (missing > 0) {
+      setPartialPrompt(true);
+      return;
+    }
+    void confirm();
+  }
   const receipt =
     doneCount !== null && doneAt
       ? `RAPID|${merchantId}|${doneCount}|${doneAt}|${pickupFee ?? "pending"}`
@@ -302,10 +336,35 @@ export function PickupScanner({
                     تفاصيل الاستلام
                   </div>
                   <DetailRow label="عدد الطرود" value={String(pendingCount)} />
-                  <DetailRow label="رقم الطلب" value={`#R-${merchantId.substring(0, 5)}`} />
-                  <DetailRow label="التاريخ" value="2026/10/19" />
-                  <DetailRow label="الوقت المتوقع" value="10:15 ص" />
+                  {requestedValid && requestedDate ? (
+                    <>
+                      <DetailRow label="تاريخ الطلب" value={formatDoneDate(requestedDate)} />
+                      <DetailRow label="وقت الطلب" value={formatDoneTime(requestedDate)} />
+                    </>
+                  ) : null}
                 </div>
+
+                {parcels.length > 0 ? (
+                  <div className="bg-white rounded-2xl border border-gray-100 p-4 mt-4 flex flex-col gap-3">
+                    <div className="flex items-center gap-2 text-base font-bold text-[#082D52]">
+                      <ScanBarcode className="size-5 text-[#0F62FF]" aria-hidden />
+                      الطرود المنتظرة
+                    </div>
+                    <ul className="flex flex-col divide-y divide-gray-100">
+                      {parcels.map((parcel) => (
+                        <li key={parcel.id} className="flex items-center justify-between gap-3 py-2">
+                          <span dir="ltr" className="font-mono text-sm font-bold text-[#082D52]">
+                            {parcel.trackingCode}
+                          </span>
+                          <span className="text-xs font-semibold text-gray-500 tabular-nums">
+                            {parcel.weightKg === null ? "—" : `${parcel.weightKg} كجم`} ·{" "}
+                            {parcel.piecesCount} قطعة · {formatDoneDate(new Date(parcel.createdAt))}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
 
                 <div className="grid grid-cols-3 gap-2 mt-4">
                   {phone ? (
@@ -423,20 +482,81 @@ export function PickupScanner({
                 </p>
               ) : null}
 
-              <button
-                type="button"
-                onClick={confirm}
-                disabled={working || codes.length === 0}
-                className="bg-[#0F62FF] hover:bg-blue-700 text-white rounded-xl h-14 font-bold text-base w-full flex justify-center items-center gap-2 disabled:opacity-50"
-              >
-                {busy === "confirm" ? (
-                  <Loader2 className="size-5 animate-spin" />
-                ) : (
-                  <PackageCheck className="size-5" />
-                )}
-                تأكيد الاستلام
-                {codes.length > 0 ? ` (${codes.length})` : ""}
-              </button>
+              {partialPrompt && missing > 0 ? (
+                <div
+                  role="alertdialog"
+                  aria-live="assertive"
+                  className="rounded-2xl border border-amber-200 bg-amber-50 p-4"
+                >
+                  <p className="flex items-start gap-2 text-sm font-bold text-amber-900">
+                    <TriangleAlert className="mt-0.5 size-5 shrink-0" aria-hidden />
+                    <span>
+                      لقد مسحت {codes.length} من {total} طرود. هل تؤكد الاستلام الجزئي؟
+                      <span className="mt-1 block text-xs font-medium text-amber-800">
+                        سيبقى {missing} {missing === 1 ? "طرد" : "طرود"} غير ممسوح بحالة قيد الانتظار.
+                      </span>
+                    </span>
+                  </p>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPartialPrompt(false)}
+                      disabled={working}
+                      className="h-12 rounded-xl border border-amber-300 bg-white text-sm font-bold text-amber-900 disabled:opacity-50"
+                    >
+                      متابعة المسح
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void confirm()}
+                      disabled={working}
+                      className="flex h-12 items-center justify-center gap-2 rounded-xl bg-amber-600 text-sm font-bold text-white disabled:opacity-50"
+                    >
+                      {busy === "confirm" ? <Loader2 className="size-4 animate-spin" /> : null}
+                      تأكيد استلام جزئي
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={requestConfirm}
+                  disabled={working || codes.length === 0}
+                  className="bg-[#0F62FF] hover:bg-blue-700 text-white rounded-xl h-14 font-bold text-base w-full flex justify-center items-center gap-2 disabled:opacity-50"
+                >
+                  {busy === "confirm" ? (
+                    <Loader2 className="size-5 animate-spin" />
+                  ) : (
+                    <PackageCheck className="size-5" />
+                  )}
+                  {missing > 0 ? "إنهاء الاستلام" : "تأكيد الاستلام"}
+                  {codes.length > 0 ? ` (${codes.length}/${total})` : ""}
+                </button>
+              )}
+
+              {parcels.length > 0 ? (
+                <ul className="mt-4 flex flex-col divide-y divide-gray-100 rounded-2xl border border-gray-100 bg-white px-4">
+                  {parcels.map((parcel) => {
+                    const scanned = scannedSet.has(parcel.trackingCode);
+                    return (
+                      <li key={parcel.id} className="flex items-center justify-between gap-3 py-3">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <CheckCircle2
+                            className={`size-5 shrink-0 ${scanned ? "text-emerald-500" : "text-gray-300"}`}
+                            aria-hidden
+                          />
+                          <span dir="ltr" className="font-mono text-sm font-bold text-[#082D52]">
+                            {parcel.trackingCode}
+                          </span>
+                        </span>
+                        <span className="text-xs font-semibold text-gray-500 tabular-nums">
+                          {parcel.weightKg === null ? "—" : `${parcel.weightKg} كجم`} · {parcel.piecesCount} قطعة
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
 
               {codes.length > 0 ? (
                 <ul className="mt-4 flex flex-wrap gap-2">
@@ -450,7 +570,10 @@ export function PickupScanner({
                       </span>
                       <button
                         type="button"
-                        onClick={() => setCodes((current) => current.filter((item) => item !== code))}
+                        onClick={() => {
+                          setPartialPrompt(false);
+                          setCodes((current) => current.filter((item) => item !== code));
+                        }}
                         disabled={working}
                         aria-label={code}
                         className="pointer-events-auto relative z-10 flex size-7 items-center justify-center rounded-full text-gray-400"
@@ -471,10 +594,25 @@ export function PickupScanner({
               <dl className="mt-6 flex w-full flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-4 text-start">
                 <DetailRow label="اسم المتجر" value={companyName} />
                 <DetailRow label="عدد الطرود" value={String(doneCount)} />
-                <DetailRow label="رقم الاستلام" value={`#R-${merchantId.substring(0, 5)}`} />
+                {doneRemaining > 0 ? (
+                  <DetailRow label="متبقي قيد الانتظار" value={String(doneRemaining)} />
+                ) : null}
                 <DetailRow label="التاريخ" value={doneAt ? formatDoneDate(new Date(doneAt)) : ""} />
                 <DetailRow label="الوقت" value={doneAt ? formatDoneTime(new Date(doneAt)) : ""} />
               </dl>
+              {doneCodes.length > 0 ? (
+                <ul className="mt-3 flex w-full flex-wrap justify-center gap-2">
+                  {doneCodes.map((code) => (
+                    <li
+                      key={code}
+                      dir="ltr"
+                      className="rounded-full border border-emerald-100 bg-white px-3 py-1 font-mono text-xs font-semibold tracking-wider text-[#082D52]"
+                    >
+                      {code}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               <div className="mt-4 w-full">
                 <QrMark value={receipt} label={t.handoverTitle} />
               </div>

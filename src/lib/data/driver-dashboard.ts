@@ -2,7 +2,7 @@ import { getAuthSession } from "@/lib/auth/session";
 import { coordsFromMapsUrl, zoneFromText } from "@/lib/driver/geo";
 import { isDriverLocale } from "@/lib/driver/messages";
 import { isNavApp } from "@/lib/driver/navigation";
-import type { PickupShipment } from "@/lib/driver/pickup-shipments";
+import type { PickupPendingParcel, PickupShipment } from "@/lib/driver/pickup-shipments";
 import {
   DEFAULT_DRIVER_PREFERENCES,
   type DriverPreferences,
@@ -50,6 +50,8 @@ export type PickupMerchant = {
   pickupFee: string | null;
   /** Oldest pending parcel, when `pickup_merchant_groups` returns it. */
   requestedAt: string | null;
+  /** The real pending parcels for this merchant. Empty until migration 0018 is applied. */
+  parcels: PickupPendingParcel[];
 };
 
 /** A parcel this driver loaded from the hub. Customer details are theirs to see. */
@@ -186,6 +188,7 @@ function parsePickupMerchant(row: unknown): PickupMerchant | null {
     pendingCount: count,
     pickupFee: fee,
     requestedAt: timestampOrNull(row.earliest_created_at),
+    parcels: [],
   };
 }
 
@@ -271,9 +274,31 @@ function parsePickupShipment(row: unknown): PickupShipment | null {
     weightKg: weightOrNull(row.weight_kg),
     piecesCount: pieces >= 1 && pieces <= 99 ? pieces : 1,
     createdAt,
+    updatedAt: timestampOrNull(row.updated_at) ?? createdAt,
     merchantId: row.merchant_id.toLowerCase(),
     merchantName,
     pickupAddress: typeof row.pickup_address === "string" ? row.pickup_address.trim() : "",
+  };
+}
+
+/** Reads one `pickup_pending_parcels()` row into its merchant id and parcel. */
+function parsePendingParcel(row: unknown): { merchantId: string; parcel: PickupPendingParcel } | null {
+  if (!isRecord(row)) return null;
+  if (typeof row.id !== "string" || !UUID.test(row.id)) return null;
+  if (typeof row.tracking_code !== "string" || !row.tracking_code.trim()) return null;
+  if (typeof row.merchant_id !== "string" || !UUID.test(row.merchant_id)) return null;
+  const createdAt = timestampOrNull(row.created_at);
+  if (createdAt === null) return null;
+  const pieces = whole(row.pieces_count, 1);
+  return {
+    merchantId: row.merchant_id.toLowerCase(),
+    parcel: {
+      id: row.id.toLowerCase(),
+      trackingCode: row.tracking_code.trim().toUpperCase(),
+      weightKg: weightOrNull(row.weight_kg),
+      piecesCount: pieces >= 1 && pieces <= 99 ? pieces : 1,
+      createdAt,
+    },
   };
 }
 
@@ -377,8 +402,17 @@ export async function loadDriverDashboard(
   const wantDeliveries = surface === "delivery" || surface === "legacy";
 
   const supabase = await createClient();
-  const [wallet, groups, orders, profile, merchants, delivered, alertsResult, shipmentsResult] =
-    await Promise.all([
+  const [
+    wallet,
+    groups,
+    orders,
+    profile,
+    merchants,
+    delivered,
+    alertsResult,
+    shipmentsResult,
+    parcelsResult,
+  ] = await Promise.all([
     supabase
       .from("wallets")
       .select("balance, currency")
@@ -412,6 +446,7 @@ export async function loadDriverDashboard(
     wantPickups
       ? getPickupDriverShipments(session.profile.id)
       : Promise.resolve<LoadResult<PickupShipment[]>>({ ok: true, data: [] }),
+    wantPickups ? supabase.rpc("pickup_pending_parcels") : NO_ROWS,
   ]);
 
   const listed = wantDeliveries && missingColumn(orders.error?.code)
@@ -454,10 +489,26 @@ export async function loadDriverDashboard(
     }
   }
 
+  // Real parcels per merchant. A missing RPC (0018 not applied) or a bad row
+  // only leaves the scanner without a parcel list; it never blocks the dashboard.
+  const parcelsByMerchant = new Map<string, PickupPendingParcel[]>();
+  if (!parcelsResult.error && Array.isArray(parcelsResult.data)) {
+    for (const row of parcelsResult.data) {
+      const parsed = parsePendingParcel(row);
+      if (!parsed) continue;
+      const list = parcelsByMerchant.get(parsed.merchantId) ?? [];
+      list.push(parsed.parcel);
+      parcelsByMerchant.set(parsed.merchantId, list);
+    }
+  } else if (parcelsResult.error) {
+    console.error("pickup pending parcels", parcelsResult.error.message);
+  }
+
   const pickups: PickupMerchant[] = [];
   for (const row of groups.data) {
     const merchant = parsePickupMerchant(row);
     if (!merchant) return { ok: false };
+    merchant.parcels = parcelsByMerchant.get(merchant.merchantId) ?? [];
     pickups.push(merchant);
   }
 
